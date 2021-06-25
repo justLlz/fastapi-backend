@@ -3,14 +3,14 @@ from functools import lru_cache
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from settings import config
+from settings.config import Settings
 
 index_router = APIRouter()
 
 
-@lru_cache
+@lru_cache(maxsize=None)
 def get_setting_info():
-    return config.Settings()
+    return Settings()
 
 
 class SettingInfo(BaseModel):
@@ -21,7 +21,7 @@ class SettingInfo(BaseModel):
 
 
 @index_router.get('/setting/info')
-async def get_setting_info(setting: config.Settings = get_setting_info()):
+async def get_setting_info(setting: Settings = get_setting_info()):
     return {'app_name': setting.app_name}
 
 
