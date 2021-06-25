@@ -1,16 +1,16 @@
 from functools import lru_cache
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from pydantic import BaseModel
 
-from settings.config import Settings
+from settings.config import settings
 
-index_router = APIRouter()
+router = APIRouter()
 
 
 @lru_cache(maxsize=None)
 def get_setting_info():
-    return Settings()
+    return settings
 
 
 class SettingInfo(BaseModel):
@@ -20,8 +20,8 @@ class SettingInfo(BaseModel):
     tax: float = None
 
 
-@index_router.get('/setting/info')
-async def get_setting_info(setting: Settings = get_setting_info()):
+@router.get('/setting/info')
+async def get_setting_info(setting: get_setting_info()):
     return {'app_name': setting.app_name}
 
 
@@ -34,7 +34,12 @@ async def get_setting_info(setting: Settings = get_setting_info()):
 """
 
 
-@index_router.post('/setting/{setting_type}/info')
+@router.post('/setting/{setting_type}/info')
 async def add_setting(setting_type: str, setting_info: SettingInfo):
     request_body_data = setting_info.dict()
     return {"setting_type": setting_type}
+
+
+@router.get('/student/{s_id}')
+async def student_info(s_id: int):
+    return {'name': 'llz', 'age': 26, 's_id': s_id}
