@@ -1,6 +1,6 @@
-from fastapi import FastAPI
-from .routers.index import index_router
-from .routers.user import user_router
+from fastapi import FastAPI, Query, Depends, Path
+from routers.index import index_router
+from routers.user import user_router
 
 app = FastAPI(debug=True)
 app.include_router(index_router)
@@ -15,3 +15,7 @@ async def func_hello():
 @app.get('/student/{s_id}')
 async def student_info(s_id: int):
     return {'name': 'llz', 'age': 26, 's_id': s_id}
+
+
+if __name__ == '__main__':
+    pass
