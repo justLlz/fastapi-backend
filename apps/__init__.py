@@ -1,4 +1,3 @@
-
 """
 
 fastapi工厂模式
@@ -11,7 +10,6 @@ from starlette.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError, ValidationError
 from aioredis import create_redis_pool
 
-
 from common.logger import logger
 from utils.custom_exc import PostParamsError, UserTokenError, UserNotFound
 from utils import response_code
@@ -22,35 +20,39 @@ from settings.config import settings
 def create_app():
     """
     生成FatAPI对象
-    :return:
     """
-    app = FastAPI(
-        title=settings.PROJECT_NAME,
-        description=settings.DESCRIPTION,
-        docs_url=f"{settings.API_V1_STR}/docs",
-        openapi_url=f"{settings.API_V1_STR}/openapi.json"
-    )
+    app = FastAPI()
+    # title=settings.PROJECT_NAME,
+    # description=settings.DESCRIPTION,
+    # docs_url=f"{settings.API_V1_STR}/docs",
+    # openapi_url=f"{settings.API_V1_STR}/openapi.json"
 
     # 其余的一些全局配置可以写在这里 多了可以考虑拆分到其他文件夹
 
     # 跨域设置
-    register_cors(app)
+    # register_cors(app)
 
     # 注册路由
-    register_router(app)
+    # register_router(app)
+    from apps import index
+    app.include_router(index.router, prefix='')
+
+    from apps import user
+    app.include_router(user.router, prefix='')
 
     # 注册捕获全局异常
-    register_exception(app)
+    # register_exception(app)
 
     # 请求拦截
-    register_middleware(app)
+    # register_middleware(app)
 
     # 挂载redis
-    register_redis(app)
+    # register_redis(app)
 
     if settings.DEBUG:
         # 注册静态文件
-        register_static_file(app)
+        pass
+        # register_static_file(app)
 
     return app
 
@@ -74,11 +76,11 @@ def register_router(app: FastAPI):
     :return:
     """
     # 项目API
-    from apps.index import index_router
-    app.include_router(index_router, prefix='')
+    from apps import index
+    app.include_router(index.router, prefix='')
 
-    from apps.user import user_router
-    app.include_router(user_router, prefix='')
+    from apps import user
+    app.include_router(user.router, prefix='')
 
 
 def register_cors(app: FastAPI):
@@ -225,6 +227,7 @@ def register_redis(app: FastAPI) -> None:
         """
         # app.state.redis = await create_redis_pool(settings.REDIS_URL)
         pass
+
     @app.on_event('shutdown')
     async def shutdown_event():
         """
@@ -233,4 +236,3 @@ def register_redis(app: FastAPI) -> None:
         """
         app.state.redis.close()
         await app.state.redis.wait_closed()
-

@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from settings.config import settings
@@ -21,8 +21,8 @@ class SettingInfo(BaseModel):
 
 
 @router.get('/setting/info')
-async def get_setting_info(setting: get_setting_info()):
-    return {'app_name': setting.app_name}
+async def get_setting_info():
+    return {'app_name': 'fast_api_demo'}
 
 
 """
