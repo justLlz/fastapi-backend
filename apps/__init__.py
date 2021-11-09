@@ -5,10 +5,10 @@ fastapi工厂模式
 """
 import traceback
 
+import aioredis
 from fastapi import FastAPI, Request
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError, ValidationError
-from aioredis import create_redis_pool
 
 from common.logger import logger
 from utils.custom_exc import PostParamsError, UserTokenError, UserNotFound
@@ -225,7 +225,10 @@ def register_redis(app: FastAPI) -> None:
         获取链接
         :return:
         """
+        # aioredis 1.5
         # app.state.redis = await create_redis_pool(settings.REDIS_URL)
+        # aioredis 2.0
+        app.state.redis = aioredis.from_url(settings.REDIS_URL, encodings='utf-8', decode_responses=True)
         pass
 
     @app.on_event('shutdown')

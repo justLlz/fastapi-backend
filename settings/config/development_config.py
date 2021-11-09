@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: str = ""
     REDIS_DB: int = 0
     REDIS_PORT: int = 6379
-    # REDIS_URL: str = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}?encoding=utf-8"
+    REDIS_URL: str = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}?encoding=utf-8"
 
     # 基本角色权限 个人没做过权限设置 但是也看过一些开源项目就这样设计吧
     DEFAULT_ROLE: List[dict] = [
