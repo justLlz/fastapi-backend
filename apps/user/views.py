@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends
 
 router = APIRouter()
@@ -16,3 +18,17 @@ async def read_user_me():
 @router.get("/user/{username}", tags=["users"])
 async def read_user(username: str):
     return {"username": username}
+
+
+# 依赖项参数同请求参数，参数依赖项使用验证
+async def common_parameters(q: Optional[str] = None, skip: int = 0, limit: int = 100):
+    return {"q": q, "skip": skip, "limit": limit}
+
+
+@router.get("/user/depends/items")
+async def read_items(commons: dict = Depends(common_parameters)):
+    """/user/depends/items?q=123
+    {"q":"123","skip":0,"limit":100}
+    """
+    print(commons)
+    return commons
