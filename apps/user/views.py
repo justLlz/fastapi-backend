@@ -17,7 +17,7 @@ async def read_user_me():
 
 
 @router.get("/user/{username}", tags=["users"])
-async def read_user(username: str):
+async def read_user(*, username: str):
     return {"username": username}
 
 
@@ -27,7 +27,7 @@ async def common_parameters(q: Optional[str] = None, skip: int = 0, limit: int =
 
 
 @router.get("/user/depends/items")
-async def read_items(commons: dict = Depends(common_parameters)):
+async def read_items(*, commons: dict = Depends(common_parameters)):
     """/user/depends/items?q=123
     {"q":"123","skip":0,"limit":100}
     """
