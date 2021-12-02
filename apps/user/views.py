@@ -1,6 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends
+from starlette.background import BackgroundTasks
 
 router = APIRouter()
 
@@ -32,3 +33,10 @@ async def read_items(commons: dict = Depends(common_parameters)):
     """
     print(commons)
     return commons
+
+
+@router.get("/background/task")
+async def background_tasks():
+    """后台任务"""
+    BackgroundTasks.add_task()
+    return {'ok': True}
