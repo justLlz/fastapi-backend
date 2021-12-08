@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ValidationError, validator
+from typing import List
+
+from pydantic import BaseModel, ValidationError, validator, EmailStr, validate_email
 
 """
 https://pydantic-docs.helpmanual.io/usage/validators/
@@ -10,6 +12,7 @@ class UserModel(BaseModel):
     username: str
     password1: str
     password2: str
+    emails: List[str]
 
     @validator('name')
     def name_must_contain_space(cls, v):
@@ -28,21 +31,12 @@ class UserModel(BaseModel):
         assert v.isalnum(), 'must be alphanumeric'
         return v
 
+    @validator('names', each_item=True)
+    def check_names_not_empty(cls, v):
+        """检查没一项 list set, 如果和父类检查相同的字段，则不会运行"""
+        assert v != '', 'Empty strings are not allowed.'
+        return v
+
 
 if __name__ == '__main__':
-    user = UserModel(
-        name='samuel colvin',
-        username='scolvin',
-        password1='zxcvbn',
-        password2='zxcvbn',
-    )
-    print(user)
-    try:
-        UserModel(
-            name='samuel',
-            username='scolvin',
-            password1='zxcvbn',
-            password2='zxcvbn2',
-        )
-    except ValidationError as e:
-        print(e)
+    pass

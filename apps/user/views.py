@@ -1,6 +1,8 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Path
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from starlette.background import BackgroundTasks
 
 router = APIRouter()
@@ -37,6 +39,32 @@ async def read_items(*, commons: dict = Depends(common_parameters)):
 
 @router.get("/background/task")
 async def background_tasks():
-    """后台任务"""
+    """后台任务
+    https://fastapi.tiangolo.com/tutorial/background-tasks/?h=backgroundtasks#using-backgroundtasks"""
     BackgroundTasks.add_task()
     return {'ok': True}
+
+
+class Item(BaseModel):
+    id: str
+    value: str
+
+
+class Message(BaseModel):
+    message: str
+
+
+responses = {
+    404: {"description": "Item not found"},
+    302: {"description": "The item was moved"},
+    403: {"description": "Not enough privileges"},
+}
+
+
+@router.get("/test/responses/{item_id}", responses={404: {"model": Message}})
+async def test_responses(*, item_id: str = Path(...)):
+    """https://fastapi.tiangolo.com/advanced/additional-responses/?h=responses"""
+    if item_id == "foo":
+        return {"id": "foo", "value": "there goes my hero"}
+    else:
+        return JSONResponse(status_code=404, content={"message": "Item not found"})
