@@ -10,6 +10,7 @@ https://pydantic-docs.helpmanual.io/usage/validators/
 class UserModel(BaseModel):
     name: str
     username: str
+    nikename: List[str]
     password1: str
     password2: str
     emails: List[str]
@@ -30,8 +31,8 @@ class UserModel(BaseModel):
     def username_alphanumeric(cls, v):
         assert v.isalnum(), 'must be alphanumeric'
         return v
-
-    @validator('names', each_item=True)
+    
+    @validator('nikename', each_item=True)
     def check_names_not_empty(cls, v):
         """检查没一项 list set, 如果和父类检查相同的字段，则不会运行"""
         assert v != '', 'Empty strings are not allowed.'
