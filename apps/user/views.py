@@ -1,5 +1,9 @@
 from typing import Optional
 
+# fastapi 校验相关工具
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security.http import HTTPBearer, HTTPBasic, HTTPBasicCredentials, HTTPAuthorizationCredentials
+
 from fastapi import APIRouter, Depends, Path
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel

@@ -7,6 +7,18 @@ from typing import List
 import orjson
 import xxhash
 
+import datetime
+import json
+
+
+class DateEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datetime.datetime):
+            print(obj.strftime('%Y-%m-%d %H:%M:%S'))
+            return obj.strftime('%Y-%m-%d %H:%M:%S')
+        else:
+            return json.JSONEncoder.default(self, obj)
+
 
 class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
