@@ -31,7 +31,7 @@ class UserModel(BaseModel):
     def username_alphanumeric(cls, v):
         assert v.isalnum(), 'must be alphanumeric'
         return v
-    
+
     @validator('nikename', each_item=True)
     def check_names_not_empty(cls, v):
         """检查没一项 list set, 如果和父类检查相同的字段，则不会运行"""

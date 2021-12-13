@@ -51,8 +51,8 @@ class Settings(BaseSettings):
     MYSQL_DATABASE: str = 'FastAdmin'
 
     # mysql地址
-    # SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{MYSQL_USERNAME}:{MYSQL_PASSWORD}@" \
-    #                           f"{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8mb4"
+    SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{MYSQL_USERNAME}:{MYSQL_PASSWORD}@" \
+                              f"{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8mb4"
 
     # redis配置
     REDIS_HOST: str = "127.0.0.1"

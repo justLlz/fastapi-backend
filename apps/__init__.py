@@ -10,7 +10,7 @@ from fastapi import FastAPI, Request
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError, ValidationError
 
-from common.logger import logger
+from utils.logger import logger
 from utils.custom_exc import PostParamsError, UserTokenError, UserNotFound
 from utils import response_code
 
@@ -229,7 +229,6 @@ def register_redis(app: FastAPI) -> None:
         # app.state.redis = await create_redis_pool(settings.REDIS_URL)
         # aioredis 2.0
         app.state.redis = aioredis.from_url(settings.REDIS_URL, encodings='utf-8', decode_responses=True)
-        pass
 
     @app.on_event('shutdown')
     async def shutdown_event():
