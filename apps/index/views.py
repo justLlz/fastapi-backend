@@ -2,9 +2,8 @@ from functools import lru_cache
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from typing import Union
 
-from common.logger import logger
+from utils.logger import logger
 from settings.config import settings
 
 router = APIRouter()

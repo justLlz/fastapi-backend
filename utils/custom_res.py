@@ -1,6 +1,6 @@
 # -*- encoding: utf-8 -*-
 """
-公共返回
+common response
 """
 
 from fastapi.responses import JSONResponse
