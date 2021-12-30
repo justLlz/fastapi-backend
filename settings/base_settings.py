@@ -1,24 +1,12 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# @Time    : 2020/6/9 14:47
-# @Author  : CoderCharm
-# @File    : development_config.py
-# @Software: PyCharm
-# @Desc    :
-"""
-开发环境配置
-
-
-"""
-
+"""使用 .env 系统配置"""
 import os
 from typing import List, Union
 
-from pydantic import AnyHttpUrl, BaseSettings, IPvAnyAddress, EmailStr
+from pydantic import BaseSettings, AnyHttpUrl, IPvAnyAddress, EmailStr
+from pathlib import Path
 
 
 class Settings(BaseSettings):
-
     DEBUG: bool = True
     #
     API_V1_STR: str = "/api/mall/v1"
@@ -68,15 +56,10 @@ class Settings(BaseSettings):
         {"role_id": 999, "role_name": "超级管理员", "permission_id": 999, "re_mark": "最高权限的超级管理员"},
     ]
 
-    # 默认生成用户数据
-    FIRST_SUPERUSER: str = "王小右"
-    FIRST_MALL: EmailStr = "wg_python@163.com"
-    FIRST_SUPERUSER_PASSWORD: str = "admin12345"
-    FIRST_ROLE: int = 999  # 超级管理员
-    FIRST_AVATAR: AnyHttpUrl = "https://avatar-static.segmentfault.com/106/603/1066030767-5d396cc440024_huge256"
-
     class Config:
+        # 区分大小写
         case_sensitive = True
-
-
-settings = Settings()
+        # 设置需要识别的 .env 文件
+        env_file = '.env'
+        # 设置字符编码
+        env_file_encoding = 'utf-8'

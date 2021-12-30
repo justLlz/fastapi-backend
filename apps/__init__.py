@@ -10,18 +10,19 @@ from fastapi import FastAPI, Request
 from starlette.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError, ValidationError
 
+from settings import get_setting
 from utils.logger import logger
 from utils.custom_exc import PostParamsError, UserTokenError, UserNotFound
 from utils import response_code
 
-from settings.config import settings
+settings = get_setting()
 
 
 def create_app():
     """
     生成FatAPI对象
     """
-    app = FastAPI()
+    app = FastAPI(debug=settings.DEBUG)
     # title=settings.PROJECT_NAME,
     # description=settings.DESCRIPTION,
     # docs_url=f"{settings.API_V1_STR}/docs",

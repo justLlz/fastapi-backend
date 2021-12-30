@@ -1,17 +1,10 @@
-from functools import lru_cache
-
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from settings import get_setting
 from utils.logger import logger
-from settings.config import settings
 
 router = APIRouter()
-
-
-@lru_cache(maxsize=None)
-def get_setting_info():
-    return settings
 
 
 class SettingInfo(BaseModel):
@@ -22,7 +15,7 @@ class SettingInfo(BaseModel):
 
 
 @router.get('/setting/info')
-async def get_setting_info(setting_info=Depends(get_setting_info)):
+async def get_setting_info(setting_info=Depends(get_setting)):
     logger.error('kky')
     return {'app_name': f'{setting_info.PROJECT_NAME}'}
 
