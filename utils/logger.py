@@ -18,8 +18,9 @@ pip install loguru
 import os
 import time
 from loguru import logger
-from settings.config import settings
+from settings import get_setting
 
+settings = get_setting()
 # 定位到log日志文件
 log_path = os.path.join(settings.BASE_DIR, 'logs')
 
