@@ -18,16 +18,14 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
 
     # 根路径
-    BASE_DIR: str = Path(__file__).parent.parent
+    BASE_DIR: str = str(Path(__file__).parent.parent.absolute())
 
     # 项目信息
     PROJECT_NAME: str = "FastAdmin"
     DESCRIPTION: str = "更多信息查看 https://www.charmcode.cn/"
     SERVER_NAME: str = "API_V1"
     SERVER_HOST: AnyHttpUrl = "http://127.0.0.1:8020"
-    # BACKEND_CORS_ORIGINS is a JSON-formatted list of origins
-    # e.g: '["http://localhost", "http://localhost:4200", "http://localhost:3000", \
-    # "http://localhost:8080", "http://local.dockertoolbox.tiangolo.com"]'
+
     # 跨域
     BACKEND_CORS_ORIGINS: List[str] = ['*']
 
