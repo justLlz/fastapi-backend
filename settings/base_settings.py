@@ -1,8 +1,7 @@
 """使用 .env 系统配置"""
-import os
 from typing import List, Union
 
-from pydantic import BaseSettings, AnyHttpUrl, IPvAnyAddress, EmailStr
+from pydantic import BaseSettings, AnyHttpUrl, IPvAnyAddress
 from pathlib import Path
 
 
@@ -19,7 +18,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
 
     # 根路径
-    BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    BASE_DIR: str = Path(__file__).parent.parent
 
     # 项目信息
     PROJECT_NAME: str = "FastAdmin"
