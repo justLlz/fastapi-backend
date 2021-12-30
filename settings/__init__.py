@@ -41,4 +41,3 @@ def get_setting():
 
 if __name__ == '__main__':
     setting = get_setting()
-    print(setting)
