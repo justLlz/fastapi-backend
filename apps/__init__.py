@@ -22,7 +22,7 @@ def create_app():
     """
     生成FatAPI对象
     """
-    app = FastAPI(debug=settings.DEBUG)
+    app = FastAPI(debug=True)
     # title=settings.PROJECT_NAME,
     # description=settings.DESCRIPTION,
     # docs_url=f"{settings.API_V1_STR}/docs",
@@ -36,11 +36,13 @@ def create_app():
     # 注册路由
     # register_router(app)
     from apps import index
-    app.include_router(index.router, prefix='')
+    app.include_router(index.router)
 
     from apps import user
-    app.include_router(user.router, prefix='')
+    app.include_router(user.router)
 
+    from apps import auth
+    app.include_router(auth.router)
     # 注册捕获全局异常
     # register_exception(app)
 
@@ -50,9 +52,9 @@ def create_app():
     # 挂载redis
     # register_redis(app)
 
-    if settings.DEBUG:
-        # 注册静态文件
-        pass
+    # if settings.DEBUG:
+    #     # 注册静态文件
+    #     pass
         # register_static_file(app)
 
     return app

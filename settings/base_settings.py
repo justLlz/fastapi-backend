@@ -6,9 +6,8 @@ from pathlib import Path
 
 
 class Settings(BaseSettings):
-    DEBUG: bool = True
-    #
-    API_V1_STR: str = "/api/mall/v1"
+    # DEBUG: bool = True
+
     # SECRET_KEY 记得保密生产环境 不要直接写在代码里面
     SECRET_KEY: str = "(-ASp+_)-Ulhw0848hnvVG-iqKyJSD&*&^-H3C9mqEqSl8KN-YRzRE"
 
@@ -16,15 +15,6 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     # jwt token过期时间 60 minutes * 24 hours * 8 days = 8 days
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
-
-    # 根路径
-    BASE_DIR: str = str(Path(__file__).parent.parent.absolute())
-
-    # 项目信息
-    PROJECT_NAME: str = "FastAdmin"
-    DESCRIPTION: str = "更多信息查看 https://www.charmcode.cn/"
-    SERVER_NAME: str = "API_V1"
-    SERVER_HOST: AnyHttpUrl = "http://127.0.0.1:8020"
 
     # 跨域
     BACKEND_CORS_ORIGINS: List[str] = ['*']

@@ -31,7 +31,6 @@ from settings.base_settings import Settings
 @lru_cache()
 def get_setting():
     env = os.getenv('ENV', 'local')
-    env = '.env_test'
     if env == 'local':
         return Settings()
     else:

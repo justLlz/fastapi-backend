@@ -1,4 +1,4 @@
-from typing import List, Mapping
+from typing import List, Mapping, Optional
 
 from pydantic import BaseModel, ValidationError, validator, EmailStr, validate_email
 
@@ -31,7 +31,7 @@ Optional[int] 等价于 Union[int, None],既可以传指定的类型 int，也�
 """
 
 
-class UserModel(BaseModel):
+class UserSchema(BaseModel):
     name: str
     username: str
     nikename: List[str]
@@ -61,6 +61,15 @@ class UserModel(BaseModel):
         """检查没一项 list set, 如果和父类检查相同的字段，则不会运行"""
         assert v != '', 'Empty strings are not allowed.'
         return v
+
+
+class Item(BaseModel):
+    id: str
+    value: str
+
+
+class Message(BaseModel):
+    message: str
 
 
 if __name__ == '__main__':

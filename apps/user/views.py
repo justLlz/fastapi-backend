@@ -9,6 +9,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.background import BackgroundTasks
 
+from schema.user import Message
+
 router = APIRouter()
 
 
@@ -47,15 +49,6 @@ async def background_tasks():
     https://fastapi.tiangolo.com/tutorial/background-tasks/?h=backgroundtasks#using-backgroundtasks"""
     BackgroundTasks.add_task()
     return {'ok': True}
-
-
-class Item(BaseModel):
-    id: str
-    value: str
-
-
-class Message(BaseModel):
-    message: str
 
 
 responses = {

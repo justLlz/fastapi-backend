@@ -17,12 +17,12 @@ pip install loguru
 
 import os
 import time
-from loguru import logger
-from settings import get_setting
+from pathlib import Path
 
-settings = get_setting()
+from loguru import logger
+
 # 定位到log日志文件
-log_path = os.path.join(settings.BASE_DIR, 'logs')
+log_path = Path(__file__).parent.parent / 'logs'
 
 if not os.path.exists(log_path):
     os.mkdir(log_path)
