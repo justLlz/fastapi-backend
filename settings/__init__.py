@@ -30,6 +30,7 @@ from settings.base_settings import Settings
 
 @lru_cache()
 def get_setting():
+    # 更加环境变量读取配置
     env = os.getenv('ENV', '.env_dev')
     env_file_path = Path(__file__).parent.parent / 'env' / env
     return Settings(_env_file=str(env_file_path), _env_file_encoding='utf-8')
