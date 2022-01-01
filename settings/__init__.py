@@ -30,12 +30,9 @@ from settings.base_settings import Settings
 
 @lru_cache()
 def get_setting():
-    env = os.getenv('ENV', 'local')
-    if env == 'local':
-        return Settings()
-    else:
-        env_file_path = Path(__file__).parent.parent / 'env' / env
-        return Settings(_env_file=str(env_file_path), _env_file_encoding='utf-8')
+    env = os.getenv('ENV', '.env_dev')
+    env_file_path = Path(__file__).parent.parent / 'env' / env
+    return Settings(_env_file=str(env_file_path), _env_file_encoding='utf-8')
 
 
 if __name__ == '__main__':

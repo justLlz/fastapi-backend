@@ -15,14 +15,13 @@ from utils.logger import logger
 from utils.custom_exc import PostParamsError, UserTokenError, UserNotFound
 from utils import response_code
 
-settings = get_setting()
-
 
 def create_app():
     """
     生成FatAPI对象
     """
-    app = FastAPI(debug=True)
+    settings = get_setting()
+    app = FastAPI(debug=settings.DEBUG)
     # title=settings.PROJECT_NAME,
     # description=settings.DESCRIPTION,
     # docs_url=f"{settings.API_V1_STR}/docs",
@@ -55,7 +54,7 @@ def create_app():
     # if settings.DEBUG:
     #     # 注册静态文件
     #     pass
-        # register_static_file(app)
+    # register_static_file(app)
 
     return app
 

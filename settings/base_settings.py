@@ -6,8 +6,7 @@ from pathlib import Path
 
 
 class Settings(BaseSettings):
-    # DEBUG: bool = True
-
+    DEBUG: bool = True
     # SECRET_KEY 记得保密生产环境 不要直接写在代码里面
     SECRET_KEY: str = "(-ASp+_)-Ulhw0848hnvVG-iqKyJSD&*&^-H3C9mqEqSl8KN-YRzRE"
 
@@ -26,8 +25,7 @@ class Settings(BaseSettings):
     MYSQL_DATABASE: str = 'FastAdmin'
 
     # mysql地址
-    SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{MYSQL_USERNAME}:{MYSQL_PASSWORD}@" \
-                              f"{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8mb4"
+    SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{MYSQL_USERNAME}:{MYSQL_PASSWORD}@{MYSQL_HOST}/{MYSQL_DATABASE}?charset=utf8mb4"
 
     # redis配置
     REDIS_HOST: str = "127.0.0.1"
