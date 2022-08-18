@@ -36,5 +36,4 @@ def get_setting():
     return Settings(_env_file=str(env_file_path), _env_file_encoding='utf-8')
 
 
-if __name__ == '__main__':
-    setting = get_setting()
+setting = get_setting()

@@ -2,7 +2,6 @@
 from typing import List, Union
 
 from pydantic import BaseSettings, AnyHttpUrl, IPvAnyAddress
-from pathlib import Path
 
 
 class Settings(BaseSettings):
@@ -40,6 +39,13 @@ class Settings(BaseSettings):
         {"role_id": 500, "role_name": "主管", "permission_id": 500},
         {"role_id": 999, "role_name": "超级管理员", "permission_id": 999, "re_mark": "最高权限的超级管理员"},
     ]
+
+    # gino
+    DB_POOL_MIN_SIZE = 5
+    DB_POOL_MAX_SIZE = 10
+    DB_ECHO = True
+    DB_SSL = False
+    DB_USE_CONNECTION_FOR_REQUEST = 1
 
     class Config:
         # 区分大小写
