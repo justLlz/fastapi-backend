@@ -1,44 +1,42 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# @Time    : 2020/6/19 16:12
-# @Author  : CoderCharm
-# @File    : response_code.py
-# @Software: PyCharm
-# @Desc    :
-"""
-定义返回的状态
+from decimal import Decimal
 
-# 看到文档说这个orjson 能压缩性能(squeezing performance)
-https://fastapi.tiangolo.com/advanced/custom-response/#use-orjsonresponse
-
-It's possible that ORJSONResponse might be a faster alternative.
-
-# 安装
-pip install --upgrade orjson
-
-测试了下，序列化某些特殊的字段不友好，比如小数
-TypeError: Type is not JSON serializable: decimal.Decimal
-"""
 from fastapi import status
-from fastapi.responses import JSONResponse, Response  # , ORJSONResponse
+from fastapi.responses import JSONResponse, ORJSONResponse
 
 from typing import Union
 
+from orjson import orjson
 
-def resp_200(*, data: Union[list, dict, str]=None, message: str="Success"):
 
-    return JSONResponse(
+# 自定义响应类，预处理数据中的 Decimal 类型
+class CustomORJSONResponse(ORJSONResponse):
+    def render(self, content: any) -> bytes:
+        assert orjson is not None, "orjson must be installed to use ORJSONResponse"
+
+        # 遍历数据，将所有 Decimal 转换为 float
+        def default_serializer(obj):
+            if isinstance(obj, Decimal):
+                return float(obj)
+            raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
+        # 使用 orjson.dumps 序列化数据，自动转换 Decimal 类型
+        return orjson.dumps(content, option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY,
+                            default=default_serializer)
+
+
+def resp_200(*, data: Union[list, dict, str] = None, message: str = "success"):
+    return CustomORJSONResponse(
         status_code=status.HTTP_200_OK,
         content={
             'code': 200,
             'message': message,
             'data': data,
-        }
+        },
     )
 
 
-def resp_400(*, data: str = None, message: str="BAD REQUEST") -> Response:
-    return JSONResponse(
+def resp_400(*, data: str = None, message: str = "BAD REQUEST") -> JSONResponse:
+    return CustomORJSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
         content={
             'code': 400,
@@ -48,8 +46,8 @@ def resp_400(*, data: str = None, message: str="BAD REQUEST") -> Response:
     )
 
 
-def resp_403(*, data: str = None, message: str="Forbidden") -> Response:
-    return JSONResponse(
+def resp_403(*, data: str = None, message: str = "Forbidden") -> JSONResponse:
+    return CustomORJSONResponse(
         status_code=status.HTTP_403_FORBIDDEN,
         content={
             'code': 403,
@@ -59,8 +57,8 @@ def resp_403(*, data: str = None, message: str="Forbidden") -> Response:
     )
 
 
-def resp_404(*, data: str = None, message: str="Page Not Found") -> Response:
-    return JSONResponse(
+def resp_404(*, data: str = None, message: str = "Page Not Found") -> JSONResponse:
+    return CustomORJSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
         content={
             'code': 404,
@@ -70,8 +68,8 @@ def resp_404(*, data: str = None, message: str="Page Not Found") -> Response:
     )
 
 
-def resp_422(*, data: str = None, message: Union[list, dict, str]="UNPROCESSABLE_ENTITY") -> Response:
-    return JSONResponse(
+def resp_422(*, data: str = None, message: Union[list, dict, str] = "UNPROCESSABLE_ENTITY") -> JSONResponse:
+    return CustomORJSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
             'code': 422,
@@ -81,8 +79,8 @@ def resp_422(*, data: str = None, message: Union[list, dict, str]="UNPROCESSABLE
     )
 
 
-def resp_500(*, data: str = None, message: Union[list, dict, str]="Server Internal Error") -> Response:
-    return JSONResponse(
+def resp_500(*, data: str = None, message: Union[list, dict, str] = "Server Internal Error") -> JSONResponse:
+    return CustomORJSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             'code': "500",
@@ -93,8 +91,8 @@ def resp_500(*, data: str = None, message: Union[list, dict, str]="Server Intern
 
 
 # 自定义
-def resp_5000(*, data: Union[list, dict, str]=None, message: str="Token failure") -> Response:
-    return JSONResponse(
+def resp_5000(*, data: Union[list, dict, str] = None, message: str = "Token failure") -> JSONResponse:
+    return CustomORJSONResponse(
         status_code=status.HTTP_200_OK,
         content={
             'code': 5000,
@@ -104,8 +102,8 @@ def resp_5000(*, data: Union[list, dict, str]=None, message: str="Token failure"
     )
 
 
-def resp_5001(*, data: Union[list, dict, str]=None, message: str="User Not Found") -> Response:
-    return JSONResponse(
+def resp_5001(*, data: Union[list, dict, str] = None, message: str = "User Not Found") -> JSONResponse:
+    return CustomORJSONResponse(
         status_code=status.HTTP_200_OK,
         content={
             'code': 5001,

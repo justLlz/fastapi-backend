@@ -1,17 +1,9 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# @Time    : 2020/6/17 15:50
-# @Author  : CoderCharm
-# @File    : logger.py
-# @Software: PyCharm
-# @Desc    :
 """
 
 日志文件配置
 
 # 本来是想 像flask那样把日志对象挂载到app对象上，作者建议直接使用全局对象
 https://github.com/tiangolo/fastapi/issues/81#issuecomment-473677039
-pip install loguru
 
 """
 
