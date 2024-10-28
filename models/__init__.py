@@ -1,15 +1,10 @@
 from typing import Union
-
-from fastapi import HTTPException
+from fastapi import status, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import Column, DateTime, BigInteger
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
+from sqlalchemy import Column, DateTime, BigInteger, select
 
-from core.db import Base, get_session
+from utils.db import Base, get_session
 from utils import int_utc_timestamp
-from utils.custom_exc import GlobalException
-from utils.logger import logger
 
 
 class ModelMixin(Base):
@@ -23,50 +18,50 @@ class ModelMixin(Base):
     async def get(cls, record_id: int):
         async with get_session() as session:
             try:
-                return session.query(cls).get(record_id)
+                stmt = select(cls).where(cls.id == record_id)
+                result = await session.execute(stmt)
+                data = result.scalars().first()
+                if not data:
+                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{cls.__name__} not found")
+                return data
             except Exception as e:
-                logger.error(f'{cls.__name__}-db save err: {e}')
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                    detail=f'{cls.__name__} database error: {e}')
 
     async def save(self):
         async with get_session() as session:
             try:
-                session.add(self)  # 将当前实例添加到会话
-                await session.commit()  # 提交更改
-                await session.refresh(self)  # 刷新实例以获取数据库中更新后的数据
+                session.add(self)
+                await session.commit()
             except Exception as e:
-                raise GlobalException(f'{self.__class__.__name__}-db save err: {e}')
+                # await session.rollback()
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                    detail=f'{self.__class__.__name__} save error: {e}')
 
     async def delete(self):
         async with get_session() as session:
             try:
-                session.delete(self)
-                session.commit()
+                await session.delete(self)
+                await session.commit()
             except Exception as e:
-                raise GlobalException(f'{self.__class__.__name__}-db delete err: {e}')
+                # await session.rollback()
+                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                    detail=f'{self.__class__.__name__} delete error: {e}')
 
     @classmethod
     def create(cls, data: Union[dict, BaseModel]):
-        # 创建一个新实例
-        instance = cls()
-
-        # 如果是 Pydantic 模型，则转为字典
         if isinstance(data, BaseModel):
             data = data.model_dump(exclude_unset=True)
-
-        # 使用 data 字典填充实例字段
-        instance._populate(data)
-        return instance
+        # 创建并返回填充好的实例
+        return cls(**data)
 
     def update(self, update_record: BaseModel):
-        # 从 Pydantic 模型中提取更新数据
         update_data = update_record.model_dump(exclude_unset=True)
-
-        # 更新当前实例字段
         self._populate(update_data)
 
     def _populate(self, data: dict):
         # 遍历字段并更新当前实例
         cols = self.__class__.__table__.columns.keys()
-        for col in cols:
-            if col in data:
-                setattr(self, col, data[col])
+        for col, value in data.items():
+            if col in cols:
+                setattr(self, col, value)

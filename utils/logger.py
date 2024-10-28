@@ -1,29 +1,37 @@
-"""
-
-日志文件配置
-
-# 本来是想 像flask那样把日志对象挂载到app对象上，作者建议直接使用全局对象
-https://github.com/tiangolo/fastapi/issues/81#issuecomment-473677039
-
-"""
-
-import os
+import sys
 import time
+from logging import INFO
 from pathlib import Path
 
 from loguru import logger
 
-# 定位到log日志文件
-log_path = Path(__file__).parent.parent / 'logs'
+# 定义日志路径和格式
+LOG_DIRECTORY: Path = Path(__file__).parent.parent / 'logs'
+LOG_FILE_PATH: Path = LOG_DIRECTORY.joinpath(f"{time.strftime('%Y-%m-%d')}_error.log")
+LOG_FORMAT: str = "{time:YYYY-MM-DD HH:mm:ss ZZ}|{level}|{file}:{line} in {function}|{extra[trace_id]}| {message}"
 
-if not os.path.exists(log_path):
-    os.mkdir(log_path)
 
-log_path_error = os.path.join(log_path, f'{time.strftime("%Y-%m-%d")}_error.log')
+def setup_logger(log_file_path: Path = LOG_FILE_PATH, log_level: int = INFO) -> None:
+    """设置日志记录器的配置"""
+    try:
+        # 创建日志目录（如果不存在）
+        LOG_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        logger.error(f"Failed to create log directory: {e}")
+        sys.exit(1)
 
-# 日志简单配置
-# 具体其他配置 可自行参考 https://github.com/Delgan/loguru
-logger.add(log_path_error, rotation="12:00", retention="5 days", enqueue=True)
+    # 文件日志配置
+    logger.add(
+        sink=log_file_path,
+        format=LOG_FORMAT,
+        level=log_level,
+        rotation="12:00",  # 每天中午12点轮转
+        retention="5 days",  # 保留5天的日志
+        enqueue=True
+    )
 
-# 只导出 logger
+
+# 初始化日志配置
+setup_logger()
+
 __all__ = ["logger"]

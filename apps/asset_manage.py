@@ -1,28 +1,33 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Body
 from typing import Annotated
 
-from entity.device import DeviceEntity
+from dao.device import DeviceDao
+from entity.asset import AssetStatus
+from entity.device import DeviceEntity, DeviceCreate
 from models.device import Device
-from schemas.device import DeviceCreate
-from utils.response_code import resp_200
+from utils.response_utils import resp_200
 
 router = APIRouter()
 
 
 # 查询设备
 @router.get("/device", tags=["device"], description='查询设备列表')
-async def device_lst(page: Annotated[int, Query(..., gt=0)] = 0, limit: Annotated[int, Query(..., gt=0)] = 10):
-    return resp_200(data={'page': page, 'limit': limit})
+async def device_lst(asset_status: Annotated[AssetStatus, Query(..., )],
+                     page: Annotated[int, Query(..., gt=0)] = 1,
+                     limit: Annotated[int, Query(..., gt=0)] = 10,
+                     ):
+    m_lst = await DeviceDao.get_device_batch(page, limit, asset_status)
+    resp_data = DeviceEntity.batch_model_to_dict(m_lst)
+    return resp_200(data=resp_data)
 
 
 # 新增设备
 @router.post("/device", tags=["device"], description='增加设备')
-async def device_add(device: DeviceCreate):
+async def device_add(device: Annotated[DeviceCreate, Body(...)]):
     dev = Device.create(device)
     await dev.save()
 
-    data = DeviceEntity.model_to_dict(dev)
-    return resp_200(data=data)
+    return resp_200()
 
 
 # 查询单个设备

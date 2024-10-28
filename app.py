@@ -1,154 +1,89 @@
+import time
+import uuid
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
 
 from core.config import setting
-from core.db import lifespan
-from utils import response_code
+
+from utils import response_utils
 from utils.logger import logger
-from utils.response_code import CustomORJSONResponse
 
 
-def create_app():
-    """
-    fastapi工厂模式
-    """
-    app = FastAPI(debug=setting.DEBUG, lifespan=lifespan)
-    # openapi_url=f'{settings.API_V1_STR}/openapi.json'
+def create_app() -> FastAPI:
+    app = FastAPI(debug=setting.DEBUG)
 
-    # 其余的一些全局配置可以写在这里 多了可以考虑拆分到其他文件夹
-
-    # 跨域设置
-    register_cors(app)
-
-    # 注册路由
-    register_router(app)
-
-    # 注册捕获全局异常
-    register_exception(app)
-
-    # 请求拦截
-    # register_middleware(app)
-
-    # if settings.DEBUG:
-    #     # 注册静态文件
-    #     pass
     # register_static_file(app)
+    register_router(app)
+    register_exception(app)
+    register_middleware(app)
 
     return app
 
 
 def register_static_file(app: FastAPI) -> None:
-    """
-    静态文件交互 生产使用 nginx
-    这里是开发是方便本地
-    :param app:
-    :return:
-    """
-    from fastapi.staticfiles import StaticFiles
     app.mount('/assets', StaticFiles(directory='assets'), name='assets')
 
 
 def register_router(app: FastAPI):
-    """
-    注册路由
-    :param app:
-    :return:
-    """
-
     from apps.asset_manage import router as assets_router
     app.include_router(assets_router, prefix='/asset_manage')
 
 
-def register_cors(app: FastAPI):
-    """
-    支持跨域
+def register_exception(app: FastAPI):
+    def _record_log_error(tag: str, err_desc: str):
+        logger.error(f'{tag}: {err_desc}')
 
-    :param app:
-    :return:
-    """
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(_: Request, exc: RequestValidationError):
+        _record_log_error('Validation Error', err_desc := exc.__str__())
+        return response_utils.resp_422(message=f'Validation Error: {err_desc}')
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(_: Request, exc: StarletteHTTPException):
+        _record_log_error('HTTP Error', err_desc := exc.__str__())
+        return response_utils.custom_response(
+            status_code=(code := exc.status_code),
+            code=code,
+            message=f'HTTP Error: {err_desc}',
+            data=None
+        )
+
+    @app.exception_handler(Exception)
+    async def all_exception_handler(_: Request, exc: Exception):
+        _record_log_error('Internal Server Error', err_desc := exc.__str__())
+        return response_utils.resp_500(message=f'Internal Server Error: {err_desc}')
+
+
+def register_middleware(app: FastAPI):
+    from starlette.middleware.gzip import GZipMiddleware
+    app.add_middleware(GZipMiddleware)
 
     if setting.BACKEND_CORS_ORIGINS:
+        from starlette.middleware.cors import CORSMiddleware
         app.add_middleware(
-            CORSMiddleware,  # type: ignore
+            CORSMiddleware,
             allow_origins=setting.BACKEND_CORS_ORIGINS,
             allow_credentials=True,
             allow_methods=['*'],
             allow_headers=['*'],
         )
 
-
-def register_exception(app: FastAPI):
-    """
-    全局异常捕获
-    :param app:
-    :return:
-    """
-
-    def _record_log_error(request: Request, tag: str, err: str):
-        logger.error(
-            f'{tag}:\nmethod: {request.method}\nurl: {request.url}\nheaders: {request.headers}\nerr: {err}')
-
-    # 捕获 Pydantic 校验错误
-    @app.exception_handler(RequestValidationError)
-    async def validation_exception_handler(request: Request, exc: RequestValidationError):
-        """
-        :param request:
-        :param exc:
-        :return:
-        """
-        tag = 'Validation Error'
-        _record_log_error(request, tag, err_desc := exc.__str__())
-        return response_code.resp_422(message=f'{tag}: {err_desc}')
-
-    # 捕获 HTTP 异常
-    @app.exception_handler(StarletteHTTPException)
-    async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-        """
-        :param request:
-        :param exc:
-        :return:
-        """
-        tag = 'HTTP Error'
-        _record_log_error(request, tag, err_desc := exc.__str__())
-        return CustomORJSONResponse(
-            status_code=exc.status_code,
-            content={
-                'code': exc.status_code,
-                'message': f'{tag}: {err_desc}',
-                'data': None
-            }
-        )
-
-    # 捕获其他所有异常
-    @app.exception_handler(Exception)
-    async def all_exception_handler(request: Request, exc: Exception):
-        """
-        全局所有异常, Debug模式下不会被捕获
-        :param request:
-        :param exc:
-        :return:
-        """
-        tag = 'Internal Server Error'
-        _record_log_error(request, tag, err_desc := exc.__str__())
-        return response_code.resp_500(message=f'{tag}: {err_desc}')
-
-
-def register_middleware(app: FastAPI):
-    """
-    请求响应拦截 hook
-
-    https://fastapi.tiangolo.com/tutorial/middleware/
-    :param app:
-    :return:
-    """
-
     @app.middleware('http')
     async def logger_request(request: Request, call_next):
-        # https://stackoverflow.com/questions/60098005/fastapi-starlette-get-client-real-ip
-        # logger.info(f'访问记录:{request.method} url:{request.url}\nheaders:{request.headers}\nIP:{request.client.host}')
+        trace_id = request.headers.get("X-Trace-ID", str(uuid.uuid4().hex))
 
-        response = await call_next(request)
+        with logger.contextualize(trace_id=trace_id):
+            logger.info(f'access log: method:{request.method}, url:{request.url}, ip:{request.client.host}')
 
+            start_time = time.perf_counter()
+            response = await call_next(request)
+            process_time = time.perf_counter() - start_time
+            response.headers["X-Process-Time"] = str(process_time)
+            response.headers["X-Trace-ID"] = trace_id
+
+            logger.info(
+                f'response log: status_code:{response.status_code}, process_time:{process_time:.4f}s'
+            )
         return response

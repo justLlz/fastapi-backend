@@ -1,7 +1,4 @@
-import datetime
-import functools
-import json
-import logging
+import os
 from typing import List
 
 import orjson
@@ -57,3 +54,8 @@ def ensure_list(v) -> List:
 
 def int_utc_timestamp() -> int:
     return int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+
+
+def get_env_var() -> str:
+    env_var = str.lower(os.getenv('FAST_API_ENV', 'dev'))
+    return env_var
