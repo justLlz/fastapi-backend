@@ -70,6 +70,7 @@ class DevelopmentConfig(BaseConfig):
 
     class Config:
         env_file = '.env_dev'
+        env_file_encoding = 'utf-8'
 
 
 class TestingConfig(BaseConfig):
@@ -77,6 +78,7 @@ class TestingConfig(BaseConfig):
 
     class Config:
         env_file = '.env_test'
+        env_file_encoding = 'utf-8'
 
 
 class ProductionConfig(BaseConfig):
@@ -84,6 +86,7 @@ class ProductionConfig(BaseConfig):
 
     class Config:
         env_file = '.env_prod'
+        env_file_encoding = 'utf-8'
 
 
 @lru_cache()
