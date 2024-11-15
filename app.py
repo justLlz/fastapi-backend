@@ -1,11 +1,9 @@
-import time
-import uuid
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.exceptions import HTTPException
 from starlette.staticfiles import StaticFiles
 
-from core.config import setting
+from config import setting
 
 from utils import response_utils
 from utils.logger import logger
@@ -27,8 +25,13 @@ def register_static_file(app: FastAPI) -> None:
 
 
 def register_router(app: FastAPI):
-    from apps.asset_manage import router as assets_router
-    app.include_router(assets_router, prefix='/asset_manage')
+    # from apps.asset import router as assets_router
+    # app.include_router(assets_router)
+    # from apps.auth import router as auth_router
+    # app.include_router(auth_router)
+    # from apps.user import router as user_router
+    # app.include_router(user_router)
+    pass
 
 
 def register_exception(app: FastAPI):
@@ -40,12 +43,12 @@ def register_exception(app: FastAPI):
         _record_log_error('Validation Error', err_desc := exc.__str__())
         return response_utils.resp_422(message=f'Validation Error: {err_desc}')
 
-    @app.exception_handler(StarletteHTTPException)
-    async def http_exception_handler(_: Request, exc: StarletteHTTPException):
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(_: Request, exc: HTTPException):
         _record_log_error('HTTP Error', err_desc := exc.__str__())
         return response_utils.custom_response(
             status_code=(code := exc.status_code),
-            code=code,
+            code=code.__str__(),
             message=f'HTTP Error: {err_desc}',
             data=None
         )
@@ -57,9 +60,19 @@ def register_exception(app: FastAPI):
 
 
 def register_middleware(app: FastAPI):
+    # 4. GZip 中间件：压缩响应，提高传输效率
     from starlette.middleware.gzip import GZipMiddleware
     app.add_middleware(GZipMiddleware)
 
+    # 3. 认证中间件：校验 Token，确保只有合法用户访问 API
+    from middleware.auth import TokenAuthMiddleware2
+    app.add_middleware(TokenAuthMiddleware2)
+
+    # 2. 日志中间件：记录请求和响应的日志，监控 API 性能和请求流
+    from middleware.logger import LoggerMiddleware
+    app.add_middleware(LoggerMiddleware, logger=logger)
+
+    # 1. CORS 中间件：处理跨域请求
     if setting.BACKEND_CORS_ORIGINS:
         from starlette.middleware.cors import CORSMiddleware
         app.add_middleware(
@@ -69,21 +82,3 @@ def register_middleware(app: FastAPI):
             allow_methods=['*'],
             allow_headers=['*'],
         )
-
-    @app.middleware('http')
-    async def logger_request(request: Request, call_next):
-        trace_id = request.headers.get("X-Trace-ID", str(uuid.uuid4().hex))
-
-        with logger.contextualize(trace_id=trace_id):
-            logger.info(f'access log: method:{request.method}, url:{request.url}, ip:{request.client.host}')
-
-            start_time = time.perf_counter()
-            response = await call_next(request)
-            process_time = time.perf_counter() - start_time
-            response.headers["X-Process-Time"] = str(process_time)
-            response.headers["X-Trace-ID"] = trace_id
-
-            logger.info(
-                f'response log: status_code:{response.status_code}, process_time:{process_time:.4f}s'
-            )
-        return response
