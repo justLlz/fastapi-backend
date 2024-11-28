@@ -69,7 +69,7 @@ class DevelopmentConfig(BaseConfig):
     DEBUG: bool = True
 
     class Config:
-        env_file = '.env_dev'
+        env_file = '.env.dev'
         env_file_encoding = 'utf-8'
 
 
@@ -77,7 +77,7 @@ class TestingConfig(BaseConfig):
     DEBUG = True
 
     class Config:
-        env_file = '.env_test'
+        env_file = '.env.test'
         env_file_encoding = 'utf-8'
 
 
@@ -85,7 +85,7 @@ class ProductionConfig(BaseConfig):
     DEBUG = False
 
     class Config:
-        env_file = '.env_prod'
+        env_file = '.env.prod'
         env_file_encoding = 'utf-8'
 
 

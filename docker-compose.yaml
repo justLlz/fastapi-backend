@@ -1,0 +1,57 @@
+services:
+  fastapi-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: fastapi-image:v1
+    container_name: fastapi-server
+    ports:
+      - "28090:28090"  # 将 FastAPI 服务映射到主机的 28090 端口
+    environment:
+      FAST_API_ENV: "test"
+      TZ: "UTC"
+    stdin_open: true
+    tty: true
+    privileged: true
+    volumes:
+      - .:/app
+    networks:
+      - fastapi-network  # 共享网络
+
+  mysql-server:
+    image: mysql:8.0.39
+    container_name: mysql-server
+    ports:
+      - "23306:3306"  # 将 MySQL 服务映射到主机的 3306 端口
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      TZ: "UTC"
+    privileged: true
+    volumes:
+      - ../mysql/data:/var/lib/mysql
+      - ../mysql/logs:/var/log/mysql
+      - ../mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+    networks:
+      - fastapi-network  # 共享网络
+
+  redis-server:
+    image: redis:6.2.14
+    container_name: redis-server
+    ports:
+      - "26379:6379"  # 将 Redis 服务映射到主机的 6379 端口
+    environment:
+      TZ: "UTC"
+    volumes:
+      - ../redis/data:/data
+      - ../redis/logs:/logs
+      - ../redis/redis.conf:/usr/local/etc/redis/redis.conf
+    privileged: true
+    command: [ "redis-server", "/usr/local/etc/redis/redis.conf" ]
+    networks:
+      - fastapi-network  # 共享网络
+
+# 定义共享网络
+networks:
+  fastapi-network:
+    name: fastapi-network
+    driver: bridge
