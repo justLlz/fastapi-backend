@@ -130,26 +130,10 @@ class ModelMixin(Base):
             d[col] = getattr(self, col)
         return d
 
-    def remote_to_dict(self):
-        d = {}
-        for col in self.__mapper__.c.keys():
-            # 检查是否为 datetime 类型
-            if isinstance(attr := getattr(self, col), datetime):
-                # 如果时间没有时区信息，假设为东八区时间
-                if attr.tzinfo is None:
-                    attr = pytz.timezone('Asia/Shanghai').localize(attr)
-
-                # 转换为 UTC 时间并移除时区信息
-                d[col] = attr.astimezone(pytz.utc).replace(tzinfo=None)
-            else:
-                d[col] = attr
-        return d
-
     @classmethod
-    def where_case(cls, col: InstrumentedAttribute | Column, value: ValType) -> list:
+    def where_cond(cls, col: InstrumentedAttribute | Column, value: ValType) -> list:
         col = normalize_column(col)
-        where_cases = [col == value]
-        return where_cases
+        return [col == value]
 
 
 class BaseBuilder:
