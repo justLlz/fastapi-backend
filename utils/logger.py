@@ -8,7 +8,7 @@ from loguru import logger
 # 定义日志路径和格式
 LOG_DIRECTORY: Path = Path(__file__).parent.parent / 'logs'
 LOG_FILE_PATH: Path = LOG_DIRECTORY.joinpath(f"{time.strftime('%Y-%m-%d')}_error.log")
-LOG_FORMAT: str = "{time:YYYY-MM-DD HH:mm:ss ZZ}|{level}|{file}:{line} in {function}|{extra[trace_id]}| {message}"
+LOG_FORMAT: str = "{time:YYYY-MM-DD HH:mm:ss ZZ}|{level}|{file}:{line}|{extra[trace_id]}| {message}"
 
 
 def setup_logger(log_file_path: Path = LOG_FILE_PATH, log_level: int = INFO) -> None:
