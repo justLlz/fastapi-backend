@@ -1,0 +1,135 @@
+import logging
+import os
+import sys
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException
+
+from internal.setting import setting
+from pkg import get_env_var, resp
+
+
+def create_app() -> FastAPI:
+    debug = setting.DEBUG
+    app = FastAPI(
+        debug=debug,
+        docs_url="/docs" if debug else None,
+        redoc_url="/redoc" if debug else None,
+        lifespan=lifespan
+    )
+
+    register_router(app)
+    register_exception(app)
+    register_middleware(app)
+
+    return app
+
+
+def register_router(app: FastAPI):
+    from internal.apps.asset import router as assets_router
+    app.include_router(assets_router)
+    from internal.apps.device import router as device_router
+    app.include_router(device_router)
+    from internal.apps.cui import router as cui_router
+    app.include_router(cui_router)
+    from internal.apps.model import router as model_router
+    app.include_router(model_router)
+    from internal.apps.auth import router as auth_router
+    app.include_router(auth_router)
+    from internal.apps.user import router as user_router
+    app.include_router(user_router)
+    from internal.apps.task import router as task_router
+    app.include_router(task_router)
+    from internal.apps.operation_log import router as operation_log_router
+    app.include_router(operation_log_router)
+    from internal.apps.upload import router as upload_router
+    app.include_router(upload_router)
+
+    from internal.openapi.v1.device import router as openapi_device_router
+    app.include_router(openapi_device_router)
+    from internal.openapi.v1.auth import router as openapi_auth_router
+    app.include_router(openapi_auth_router)
+
+
+def register_exception(app: FastAPI):
+    def _record_log_error(tag: str, err_desc: str):
+        logging.error(f"{tag}: {err_desc}")
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(_: Request, exc: RequestValidationError):
+        _record_log_error("Validation Error", repr(exc))
+        return resp.resp_422(message=f"Validation Error: {exc}")
+
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(_: Request, exc: HTTPException):
+        exec_detail, exec_status_code = exc.detail, exc.status_code
+        return resp.custom_response(
+            status_code=exec_status_code,
+            code=str(exec_status_code),
+            message=exec_detail,
+            data=None
+        )
+
+    @app.exception_handler(Exception)
+    async def all_exception_handler(_: Request, exc: Exception):
+        _record_log_error("Internal Server Error", repr(exc))
+        return resp.resp_500(message=f"Internal Server Error: {exc}")
+
+
+def register_middleware(app: FastAPI):
+    # 6. GZip 中间件：压缩响应，提高传输效率
+    from starlette.middleware.gzip import GZipMiddleware
+    app.add_middleware(GZipMiddleware)
+
+    # 5. 异常处理中间件：处理异常，返回统一的错误响应
+    from internal.middleware.exception import ExceptionHandlingMiddleware
+    app.add_middleware(ExceptionHandlingMiddleware)
+
+    # 4. 限制上传文件大小
+    from internal.middleware.limit_upload_size import LimitUploadSizeMiddleware
+    app.add_middleware(LimitUploadSizeMiddleware)
+
+    # 3. 认证中间件：校验 Token，确保只有合法用户访问 API
+    from internal.middleware.auth import AuthMiddleware
+    app.add_middleware(AuthMiddleware)
+
+    # 2. 日志中间件：记录请求和响应的日志，监控 API 性能和请求流
+    from internal.middleware.logger import LoggerMiddleware
+    app.add_middleware(LoggerMiddleware)
+
+    # 1. CORS 中间件：处理跨域请求
+    if setting.BACKEND_CORS_ORIGINS:
+        from starlette.middleware.cors import CORSMiddleware
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=setting.BACKEND_CORS_ORIGINS,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
+
+# 定义 lifespan 事件处理器
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # 检查环境变量
+    env_var = get_env_var()
+    if env_var not in ["dev", "test", "prod", "local"]:
+        print(f"Invalid FAST_API_ENV value: {env_var}")
+        sys.exit(1)
+
+    # 启动时的检查逻辑
+    uploads_cui_dir = (Path().cwd().parent / "uploads" / "cui").as_posix()
+    if not os.path.exists(uploads_cui_dir):
+        # 创建上传目录
+        os.makedirs(uploads_cui_dir)
+    print("Check completed before starting.")
+
+    # 进入应用生命周期
+    yield
+
+    # 关闭时的清理逻辑
+    print("Application is about to close.")
