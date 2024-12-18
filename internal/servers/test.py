@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request
 
 from internal.services.test import TestService
 
-router = APIRouter(prefix="", tags=["test"])
+router = APIRouter(prefix="/test", tags=["test"])
 
 
 @router.get("/hello_world")

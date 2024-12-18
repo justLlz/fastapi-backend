@@ -29,7 +29,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # 跳过无需认证的路径
-        if url_path in not_auth_session_path:
+        if url_path in not_auth_session_path or url_path.startswith("/test"):
             return await call_next(request)
 
         # session 校验
