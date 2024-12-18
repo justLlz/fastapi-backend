@@ -29,29 +29,8 @@ def create_app() -> FastAPI:
 
 
 def register_router(app: FastAPI):
-    from internal.apps.asset import router as assets_router
-    app.include_router(assets_router)
-    from internal.apps.device import router as device_router
-    app.include_router(device_router)
-    from internal.apps.cui import router as cui_router
-    app.include_router(cui_router)
-    from internal.apps.model import router as model_router
-    app.include_router(model_router)
-    from internal.apps.auth import router as auth_router
-    app.include_router(auth_router)
-    from internal.apps.user import router as user_router
-    app.include_router(user_router)
-    from internal.apps.task import router as task_router
-    app.include_router(task_router)
-    from internal.apps.operation_log import router as operation_log_router
-    app.include_router(operation_log_router)
-    from internal.apps.upload import router as upload_router
-    app.include_router(upload_router)
-
-    from internal.openapi.v1.device import router as openapi_device_router
-    app.include_router(openapi_device_router)
-    from internal.openapi.v1.auth import router as openapi_auth_router
-    app.include_router(openapi_auth_router)
+    from internal.servers.test import router as test_router
+    app.include_router(test_router)
 
 
 def register_exception(app: FastAPI):
@@ -105,8 +84,8 @@ def register_middleware(app: FastAPI):
         from starlette.middleware.cors import CORSMiddleware
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=setting.BACKEND_CORS_ORIGINS,
             allow_credentials=True,
+            allow_origins=setting.BACKEND_CORS_ORIGINS,
             allow_methods=["*"],
             allow_headers=["*"],
         )

@@ -12,7 +12,6 @@ class BaseConfig(BaseSettings):
 
     # JWT 配置
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 300
 
     # CORS 配置
     BACKEND_CORS_ORIGINS: List[str]
@@ -24,20 +23,11 @@ class BaseConfig(BaseSettings):
     MYSQL_PORT: str
     MYSQL_DATABASE: str
 
-    # design_gpt MySQL 配置
-    DESIGN_GPT_MYSQL_USERNAME: str
-    DESIGN_GPT_MYSQL_PASSWORD: str
-    DESIGN_GPT_MYSQL_HOST: Union[IPvAnyAddress, str]
-    DESIGN_GPT_MYSQL_PORT: str
-    DESIGN_GPT_MYSQL_DATABASE: str
-
     # Redis 配置
     REDIS_HOST: str
     REDIS_PASSWORD: str
     REDIS_DB: int
     REDIS_PORT: int
-
-    DESIGN_GPT_API_BASE: str
 
     class Config:
         case_sensitive = True
@@ -50,14 +40,6 @@ class BaseConfig(BaseSettings):
     @property
     def sqlalchemy_echo(self) -> bool:
         return self.DEBUG  # 开发环境启用 SQLAlchemy 日志
-
-    @property
-    def design_gpt_sqlalchemy_database_uri(self) -> str:
-        return f"mysql+aiomysql://{self.DESIGN_GPT_MYSQL_USERNAME}:{self.DESIGN_GPT_MYSQL_PASSWORD}@{self.DESIGN_GPT_MYSQL_HOST}:{self.DESIGN_GPT_MYSQL_PORT}/{self.DESIGN_GPT_MYSQL_DATABASE}?charset=utf8mb4"
-
-    @property
-    def design_gpt_sqlalchemy_echo(self) -> bool:
-        return self.DEBUG
 
     @property
     def redis_url(self) -> str:

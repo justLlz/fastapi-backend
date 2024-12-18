@@ -3,7 +3,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from internal.core.session import verify_session
 from internal.core.signature import verify_signature
-from internal.entity.user import UserCategory
 from pkg.resp import resp_401
 
 not_auth_session_path = [
@@ -39,17 +38,5 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not ok:
             return resp_401(message="invalid or missing session")
 
-        if url_path in ("/auth/user", "/v1/auth/user"):
-            request.state.user_data = user_data
-            return await call_next(request)
-
-        user_category = user_data.get("category")
-        if url_path.startswith("/v1"):
-            return await call_next(request)
-
-        # 应用的用户不能登录后台
-        if user_category != UserCategory.MANAGER:
-            return resp_401(message="design-gpt user cannot login to admin backend")
-
-        request.state.user_id = user_data.get("id")
+        request.state.user_data = user_data
         return await call_next(request)

@@ -10,7 +10,7 @@ from sqlalchemy.orm import InstrumentedAttribute
 from starlette import status
 
 from internal.infra.db import get_session
-from internal.models import ModelMixin
+from internal.models.mixin import ModelMixin
 from internal.utils.mixin_type import MixinModelType, MixinValType, normalize_column
 from pkg import get_utc_datetime, unique_iterable
 

@@ -164,3 +164,27 @@ def generate_unique_filename(filename: str) -> str:
 
 def create_uuid_session():
     return shortuuid.uuid()
+
+def validate_phone_number(phone: str) -> bool:
+    """
+    校验手机号是否符合中国大陆的手机号格式
+    :param phone: 待验证的手机号字符串
+    :return: 如果手机号格式正确，返回 True，否则返回 False
+    """
+    # 正则表达式：以1开头，第二位是3-9之间的数字，后面是9个数字
+    pattern = r"^1[3-9]\d{9}$"
+
+    if re.match(pattern, phone):
+        return True
+    else:
+        return False
+
+
+def generate_account_by_phone(phone_number: str) -> str:
+    # 选择哈希算法（例如 SHA-256）
+    hashed_phone = hashlib.sha256(phone_number.encode('utf-8')).hexdigest()
+
+    # 为了增加唯一性，也可以使用 UUID 来保证生成的 ID 是唯一的
+    unique_account_id = f"user_{hashed_phone}"
+
+    return unique_account_id
