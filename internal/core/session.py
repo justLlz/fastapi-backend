@@ -16,10 +16,6 @@ async def verify_session(session: str) -> (Optional[dict], bool):
         return None, False
 
     user_id = user_data.get("id")
-    if not user_id:
-        Logger.warning("Token verification failed: user_id not found")
-        return None, False
-
     # 检查有没有在session 列表里
     session_list = await get_list(session_list_cache_key(user_id))
     if session_list is None or session not in session_list:
