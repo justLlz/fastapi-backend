@@ -6,7 +6,7 @@ from typing import Dict
 from fastapi import HTTPException, status
 
 from internal.setting import setting
-from pkg.logger import logger
+from pkg.logger import Logger
 
 
 class HMACSigner:
@@ -55,10 +55,10 @@ class HMACSigner:
             # 获取当前 UTC 时间戳
             current_time = int(time.time())
             if (current_time - request_time) > self.timestamp_tolerance:
-                logger.error(f"invalid timestamp, request_time: {request_time}, current_time: {current_time}")
+                Logger.error(f"invalid timestamp, request_time: {request_time}, current_time: {current_time}")
                 return False
         except Exception as e:
-            logger.error(f"is_timestamp_valid failed: {repr(e)}")
+            Logger.error(f"is_timestamp_valid failed: {repr(e)}")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
         return True
@@ -71,12 +71,12 @@ async def verify_signature(x_signature: str, x_timestamp: str, x_nonce: str) -> 
     signer = HMACSigner(setting.SECRET_KEY)
     # 检查时间戳，防止重放攻击
     if not signer.is_timestamp_valid(x_timestamp):
-        logger.error(f"invalid timestamp: {x_timestamp}")
+        Logger.error(f"invalid timestamp: {x_timestamp}")
         return False
 
     # 检查签名是否有效
     if not signer.verify_signature({"timestamp": x_timestamp, "nonce": x_nonce}, x_signature):
-        logger.error(f"invalid signature: timestamp: {x_timestamp}, nonce: {x_nonce}, signature: {x_signature}")
+        Logger.error(f"invalid signature: timestamp: {x_timestamp}, nonce: {x_nonce}, signature: {x_signature}")
         return False
 
     return True

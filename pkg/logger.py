@@ -1,7 +1,5 @@
-import logging
 import sys
 import time
-from logging import INFO
 from pathlib import Path
 
 import loguru
@@ -12,7 +10,7 @@ LOG_FILE_PATH: Path = LOG_DIRECTORY.joinpath(f"{time.strftime('%Y-%m-%d')}_error
 LOG_FORMAT: str = "{time:YYYY-MM-DD HH:mm:ss ZZ}|{level}|{name}:{line}|{extra[trace_id]}: {message}"
 
 
-def init_logger(log_file_path: Path = LOG_FILE_PATH, log_level: int = INFO):
+def init_logger(log_file_path: Path = LOG_FILE_PATH, log_level: int = "INFO"):
     """设置日志记录器的配置"""
     try:
         # 创建日志目录（如果不存在）
@@ -36,5 +34,5 @@ def init_logger(log_file_path: Path = LOG_FILE_PATH, log_level: int = INFO):
     return l
 
 
-logger = init_logger()
+Logger = init_logger()
 print("Init logger successfully.")

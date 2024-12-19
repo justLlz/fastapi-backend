@@ -1,11 +1,13 @@
 from contextlib import asynccontextmanager
 
 from redis.asyncio import ConnectionPool, Redis
+from sqlalchemy import Engine, event, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
 from internal.setting import setting
 from pkg import json_dumps, json_loads
+from pkg.logger import Logger
 
 # 创建 SQLAlchemy 基类
 Base = declarative_base()
@@ -37,6 +39,19 @@ async def get_session() -> AsyncSession:
         finally:
             await session.close()
 
+
+def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+    try:
+        compiled_statement = statement
+        if parameters:
+            compiled_statement = text(statement % tuple(parameters)).compile(compile_kwargs={"literal_binds": True})
+        Logger.info(f"Executing SQL: {compiled_statement}")
+    except Exception as e:
+        Logger.error(f"Error while printing SQL: {e}")
+
+
+# 监听 before_cursor_execute 事件，将事件处理函数绑定到 Engine 上
+event.listen(Engine, "before_cursor_execute", before_cursor_execute)
 
 # 创建全局的连接池实例
 RedisConnectPool = ConnectionPool.from_url(setting.redis_url, encoding="utf-8", decode_responses=True)
