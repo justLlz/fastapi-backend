@@ -66,7 +66,7 @@ def resp_failed(code: int, message: str) -> CustomORJSONResponse:
     )
 
 
-def resp_success(*, data: Union[list, dict, str]):
+def resp_success(*, data: Union[list, dict, str] = None):
     return custom_response(
         status_code=200,
         code='200',
@@ -76,36 +76,36 @@ def resp_success(*, data: Union[list, dict, str]):
 
 
 # 各种状态码的响应函数
-def resp_200(*, data: Union[list, dict, str] = None, message: str = "success"):
-    return custom_response(status_code=HTTP_200_OK, code='200', message=message, data=data)
+def resp_200(*, data: Union[list, dict, str] = None):
+    return resp_success(data=data)
 
 
 def resp_400(*, message: str = "BAD REQUEST"):
-    return custom_response(status_code=HTTP_400_BAD_REQUEST, code='400', message=message)
+    return resp_failed(HTTP_400_BAD_REQUEST, message=message)
 
 
 def resp_401(*, message: str = "UNAUTHORIZED"):
-    return custom_response(status_code=HTTP_401_UNAUTHORIZED, code='401', message=message)
+    return resp_failed(code=HTTP_401_UNAUTHORIZED, message=message)
 
 
 def resp_403(*, message: str = "Forbidden"):
-    return custom_response(status_code=HTTP_403_FORBIDDEN, code='403', message=message)
+    return resp_failed(HTTP_403_FORBIDDEN, message=message)
 
 
 def resp_404(*, message: str = "Not Found"):
-    return custom_response(status_code=HTTP_404_NOT_FOUND, code='404', message=message)
+    return resp_failed(code=HTTP_404_NOT_FOUND, message=message)
 
 
 def resp_422(*, message: Union[list, dict, str] = "UNPROCESSABLE_ENTITY"):
-    return custom_response(status_code=HTTP_422_UNPROCESSABLE_ENTITY, code='422', message=message)
+    return resp_failed(code=HTTP_422_UNPROCESSABLE_ENTITY, message=message)
 
 
 def resp_413(*, message: Union[list, dict, str] = "Payload Too Large"):
-    return custom_response(status_code=HTTP_413_REQUEST_ENTITY_TOO_LARGE, code='413', message=message)
+    return resp_failed(code=HTTP_413_REQUEST_ENTITY_TOO_LARGE, message=message)
 
 
 def resp_500(*, message: Union[list, dict, str] = "Server Internal Error"):
-    return custom_response(status_code=HTTP_500_INTERNAL_SERVER_ERROR, code='500', message=message)
+    return resp_failed(HTTP_500_INTERNAL_SERVER_ERROR, message=message)
 
 
 # 自定义错误码的响应
