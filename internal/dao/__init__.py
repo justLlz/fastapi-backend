@@ -2,17 +2,17 @@ from decimal import Decimal
 from typing import Any, Optional, Type, Union
 
 from fastapi import HTTPException
-from loguru import logger
 
 from sqlalchemy import Column, ColumnElement, Select, asc, desc, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
-from starlette import status
+from starlette.status import HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
 
 from internal.infra.db import get_session
 from internal.models.mixin import ModelMixin
 from internal.utils.mixin_type import MixinModelType, MixinValType, normalize_column
 from pkg import get_utc_datetime, unique_iterable
+from pkg.logger import Logger
 
 
 class Sort:
@@ -45,8 +45,7 @@ class BaseBuilder:
             match value:
                 case list() | set() | tuple() | frozenset():
                     value = unique_iterable(value)
-                    if len(value) > 0:
-                        parsed_conditions.append(col.in_(value))
+                    parsed_conditions.append(col.in_(value))
                 case str() | int() | float() | bool() | Decimal():
                     parsed_conditions.append(col == value)
                 case None:
@@ -130,8 +129,8 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalars().all()
             except Exception as e:
-                logger.error(repr(e))
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+                Logger.error(f"{self.model.__name__}: {repr(e)}")
+                raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
         return [i for i in data]
 
     async def scalar_one_or_none(self, session: Optional[AsyncSession] = None) -> Optional[MixinModelType]:
@@ -140,8 +139,8 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalar_one_or_none()
             except Exception as e:
-                logger.error(repr(e))
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+                Logger.error(f"{self.model.__name__}: {repr(e)}")
+                raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
         return data
 
     async def scalars_first(self, session: Optional[AsyncSession] = None) -> Optional[MixinModelType]:
@@ -150,15 +149,14 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalars().first()
             except Exception as e:
-                logger.error(repr(e))
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+                Logger.error(f"{self.model.__name__}: {repr(e)}")
+                raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
         return data
 
     async def get_or_exec(self, session: Optional[AsyncSession] = None) -> Optional[MixinModelType]:
         data = await self.get_or_none(session)
         if not data:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                                detail=f'{self.model.__name__} not found')
+            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="not found")
         return data
 
     async def get_or_none(self, session: Optional[AsyncSession] = None) -> Optional[MixinModelType]:
@@ -181,8 +179,8 @@ class CountBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalar()
             except Exception as e:
-                logger.error(repr(e))
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+                Logger.error(f"{self.model.__name__}: {repr(e)}")
+                raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
         return data
 
 
@@ -220,8 +218,8 @@ class UpdateBuilder(BaseBuilder):
                 await sess.execute(self.stmt.execution_options(synchronize_session=False))
                 await sess.commit()
             except Exception as e:
-                logger.error(repr(e))
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+                Logger.error(f"{self.model.__name__}: {repr(e)}")
+                raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
     @classmethod
     async def save(cls, ins: ModelMixin, session: Optional[AsyncSession] = None):
@@ -230,5 +228,5 @@ class UpdateBuilder(BaseBuilder):
                 sess.add(ins)
                 await sess.commit()
             except Exception as e:
-                logger.error(repr(e))
-                raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+                Logger.error(f"{cls.__name__}: {repr(e)}")
+                raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
