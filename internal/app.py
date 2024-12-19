@@ -25,6 +25,10 @@ def create_app() -> FastAPI:
     register_exception(app)
     register_middleware(app)
 
+    # 清除uvicorn相关日志记录器的默认处理程序
+    # logging.getLogger("uvicorn").handlers = []
+    logging.getLogger("uvicorn.access").handlers = []
+    # logging.getLogger("uvicorn.error").handlers = []
     return app
 
 
