@@ -1,9 +1,11 @@
 import datetime
 from decimal import Decimal
-from fastapi import status
 from fastapi.responses import ORJSONResponse
 from typing import Any, Union
 from orjson import orjson
+from starlette.status import (HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN,
+                              HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY, HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                              HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CustomORJSONResponse(ORJSONResponse):
@@ -39,7 +41,7 @@ class CustomORJSONResponse(ORJSONResponse):
 # 通用响应函数，用于避免重复代码
 def custom_response(
         *,
-        status_code: int = status.HTTP_200_OK,
+        status_code: int = HTTP_200_OK,
         code: str = '',
         message: Union[str, list, dict] = "success",
         data: Union[list, dict, str, None] = None
@@ -55,43 +57,61 @@ def custom_response(
     )
 
 
+def resp_failed(code: int, message: str) -> CustomORJSONResponse:
+    return custom_response(
+        status_code=200,
+        code=str(code),
+        message=message,
+        data=None
+    )
+
+
+def resp_success(*, data: Union[list, dict, str]):
+    return custom_response(
+        status_code=200,
+        code='200',
+        message='success',
+        data=data
+    )
+
+
 # 各种状态码的响应函数
 def resp_200(*, data: Union[list, dict, str] = None, message: str = "success"):
-    return custom_response(status_code=status.HTTP_200_OK, code='200', message=message, data=data)
+    return custom_response(status_code=HTTP_200_OK, code='200', message=message, data=data)
 
 
-def resp_400(*, data: str = None, message: str = "BAD REQUEST"):
-    return custom_response(status_code=status.HTTP_400_BAD_REQUEST, code='400', message=message, data=data)
+def resp_400(*, message: str = "BAD REQUEST"):
+    return custom_response(status_code=HTTP_400_BAD_REQUEST, code='400', message=message)
 
 
-def resp_401(*, data: str = None, message: str = "UNAUTHORIZED"):
-    return custom_response(status_code=status.HTTP_401_UNAUTHORIZED, code='401', message=message, data=data)
+def resp_401(*, message: str = "UNAUTHORIZED"):
+    return custom_response(status_code=HTTP_401_UNAUTHORIZED, code='401', message=message)
 
 
-def resp_403(*, data: str = None, message: str = "Forbidden"):
-    return custom_response(status_code=status.HTTP_403_FORBIDDEN, code='403', message=message, data=data)
+def resp_403(*, message: str = "Forbidden"):
+    return custom_response(status_code=HTTP_403_FORBIDDEN, code='403', message=message)
 
 
-def resp_404(*, data: str = None, message: str = "Not Found"):
-    return custom_response(status_code=status.HTTP_404_NOT_FOUND, code='404', message=message, data=data)
+def resp_404(*, message: str = "Not Found"):
+    return custom_response(status_code=HTTP_404_NOT_FOUND, code='404', message=message)
 
 
-def resp_422(*, data: str = None, message: Union[list, dict, str] = "UNPROCESSABLE_ENTITY"):
-    return custom_response(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, code='422', message=message, data=data)
+def resp_422(*, message: Union[list, dict, str] = "UNPROCESSABLE_ENTITY"):
+    return custom_response(status_code=HTTP_422_UNPROCESSABLE_ENTITY, code='422', message=message)
 
 
-def resp_413(*, data: str = None, message: Union[list, dict, str] = "Payload Too Large"):
-    return custom_response(status_code=status.HTTP_413_PAYLOAD_TOO_LARGE, code='413', message=message, data=data)
+def resp_413(*, message: Union[list, dict, str] = "Payload Too Large"):
+    return custom_response(status_code=HTTP_413_REQUEST_ENTITY_TOO_LARGE, code='413', message=message)
 
 
-def resp_500(*, data: str = None, message: Union[list, dict, str] = "Server Internal Error"):
-    return custom_response(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, code='500', message=message, data=data)
+def resp_500(*, message: Union[list, dict, str] = "Server Internal Error"):
+    return custom_response(status_code=HTTP_500_INTERNAL_SERVER_ERROR, code='500', message=message)
 
 
 # 自定义错误码的响应
-def resp_5000(*, data: Union[list, dict, str] = None, message: str = "Token failure"):
-    return custom_response(code='5000', message=message, data=data)
+def resp_5000(*, message: str = "Token failure"):
+    return resp_failed(code=5000, message=message)
 
 
-def resp_5001(*, data: Union[list, dict, str] = None, message: str = "User Not Found"):
-    return custom_response(code='5001', message=message, data=data)
+def resp_5001(*, message: str = "User Not Found"):
+    return resp_failed(code=5001, message=message)
