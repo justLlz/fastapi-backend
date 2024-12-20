@@ -7,6 +7,7 @@ from starlette import status
 
 from internal.infra.db import Base, get_session
 from pkg import format_datetime, get_utc_datetime
+from pkg.logger import Logger
 from pkg.snow_flake import snowflake_generator
 
 
@@ -24,14 +25,14 @@ class ModelMixin(Base):
                 sess.add(self)
                 await sess.commit()
         except Exception as e:
-            logger.error(f"{self.__class__.__name__} save error: {e}")
+            Logger.error(f"{self.__class__.__name__} save error: {e}")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="save error")
 
     @classmethod
-    def create(cls, data: dict) -> 'ModelMixin':
+    def create(cls, **kwargs) -> 'ModelMixin':
         cur_datetime = get_utc_datetime()
         instance = cls(id=snowflake_generator.generate_id(), created_at=cur_datetime, updated_at=cur_datetime)
-        instance._populate(data)
+        instance._populate(kwargs)
         return instance
 
     def update_fields(self, data: dict):

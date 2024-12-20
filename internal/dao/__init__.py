@@ -85,15 +85,6 @@ class BaseBuilder:
         """
         return self.add_conditions(list(conditions), logical_operator="and")
 
-    def or_(self, col: InstrumentedAttribute | Column, value: MixinValType) -> 'BaseBuilder':
-        """
-        Add a single OR condition to the query.
-        :param col: The column for the condition.
-        :param value: The value for the condition.
-        :return: The current instance of BaseBuilder.
-        """
-        return self.add_conditions([(col, value)], logical_operator="or")
-
     def or_cond(self, *conditions: tuple[InstrumentedAttribute | Column, MixinValType]) -> 'BaseBuilder':
         """
         Add multiple OR conditions to the query.

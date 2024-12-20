@@ -1,7 +1,7 @@
 from typing import Optional
 
 from pkg import session_list_cache_key
-from internal.dao.cache import get_list, get_session_value
+from internal.dao.cache import Cache
 from pkg.logger import Logger
 
 
@@ -10,14 +10,14 @@ async def verify_session(session: str) -> (Optional[dict], bool):
         Logger.warning("Token verification failed: token not found")
         return None, False
 
-    user_data: dict = await get_session_value(session)
+    user_data: dict = await Cache.get_session_value(session)
     if user_data is None:
         Logger.warning("Token verification failed: session not found")
         return None, False
 
     user_id = user_data.get("id")
     # 检查有没有在session 列表里
-    session_list = await get_list(session_list_cache_key(user_id))
+    session_list = await Cache.get_list(session_list_cache_key(user_id))
     if session_list is None or session not in session_list:
         Logger.warning(f"Token verification failed: session not found in session list, user_id: {user_id}")
         return None, False
