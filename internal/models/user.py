@@ -10,3 +10,8 @@ class User(ModelMixin):
         return cls.create(
             phone=phone,
         )
+
+
+class ManageUser(ModelMixin):
+    account = None
+    password = None
