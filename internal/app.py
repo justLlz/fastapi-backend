@@ -9,7 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException
 
 from internal.setting import setting
-from pkg import get_env_var, resp
+from pkg import colorprint, get_sys_env_var, resp
 
 
 def create_app() -> FastAPI:
@@ -26,9 +26,9 @@ def create_app() -> FastAPI:
     register_middleware(app)
 
     # 清除uvicorn相关日志记录器的默认处理程序
-    # logging.getLogger("uvicorn").handlers = []
     logging.getLogger("uvicorn.access").handlers = []
     # logging.getLogger("uvicorn.error").handlers = []
+    # logging.getLogger("uvicorn").handlers = []
     return app
 
 
@@ -98,21 +98,21 @@ def register_middleware(app: FastAPI):
 # 定义 lifespan 事件处理器
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    colorprint.green("Init lifespan, check...")
     # 检查环境变量
-    env_var = get_env_var()
+    env_var = get_sys_env_var()
     if env_var not in ["dev", "test", "prod", "local"]:
-        print(f"Invalid FAST_API_ENV value: {env_var}")
+        colorprint.red(f"Invalid FAST_API_ENV value: {env_var}")
         sys.exit(1)
 
     # 启动时的检查逻辑
-    uploads_cui_dir = (Path().cwd().parent / "uploads" / "cui").as_posix()
-    if not os.path.exists(uploads_cui_dir):
-        # 创建上传目录
-        os.makedirs(uploads_cui_dir)
-    print("Check completed before starting.")
+    uploads_cui_dir = (Path().cwd().parent / "uploads" / "cui")
+    if not uploads_cui_dir.exists():
+        uploads_cui_dir.mkdir(parents=True, exist_ok=True)
+        colorprint.yellow(f"Created missing directory: {uploads_cui_dir}")
 
+    colorprint.green("Check completed, Application will start.")
     # 进入应用生命周期
     yield
-
     # 关闭时的清理逻辑
-    print("Application is about to close.")
+    colorprint.blue("Application is about to close.")

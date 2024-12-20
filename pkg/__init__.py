@@ -1,11 +1,14 @@
 import datetime
+import hashlib
 import os
+import re
 import string
 import time
 import random
 import uuid
 from typing import List, Optional
 
+import colorama
 import orjson
 import pytz
 import shortuuid
@@ -82,9 +85,8 @@ def get_utc_datetime() -> datetime:
     return datetime.datetime.now(datetime.timezone.utc)
 
 
-def get_env_var() -> str:
-    env_var = str.lower(os.getenv('FAST_API_ENV', 'dev'))
-    return env_var
+def get_sys_env_var() -> str:
+    return str.lower(os.getenv("FAST_API_ENV", ""))
 
 
 # 把"2024-10-21T12:26:04+08:00"转化成utcdatetime
@@ -165,6 +167,7 @@ def generate_unique_filename(filename: str) -> str:
 def create_uuid_session():
     return shortuuid.uuid()
 
+
 def validate_phone_number(phone: str) -> bool:
     """
     校验手机号是否符合中国大陆的手机号格式
@@ -188,3 +191,26 @@ def generate_account_by_phone(phone_number: str) -> str:
     unique_account_id = f"user_{hashed_phone}"
 
     return unique_account_id
+
+
+class ColorPrint:
+    colorama.init(autoreset=True)
+
+    @staticmethod
+    def red(text):
+        print(colorama.Fore.RED + text)
+
+    @staticmethod
+    def green(text):
+        print(colorama.Fore.GREEN + text)
+
+    @staticmethod
+    def yellow(text):
+        print(colorama.Fore.YELLOW + text)
+
+    @staticmethod
+    def blue(text):
+        print(colorama.Fore.BLUE + text)
+
+
+colorprint = ColorPrint()

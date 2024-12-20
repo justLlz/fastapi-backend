@@ -59,3 +59,5 @@ uvloop==0.21.0
 watchfiles==0.24.0
 websockets==13.1
 xxhash==3.5.0
+
+colorama~=0.4.6

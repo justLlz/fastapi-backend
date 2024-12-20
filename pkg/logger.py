@@ -4,6 +4,8 @@ from pathlib import Path
 
 import loguru
 
+from pkg import colorprint
+
 # 定义日志路径和格式
 LOG_DIRECTORY: Path = Path().cwd() / 'logs'
 LOG_FILE_PATH: Path = LOG_DIRECTORY.joinpath(f"{time.strftime('%Y-%m-%d')}_error.log")
@@ -16,7 +18,7 @@ def init_logger(log_file_path: Path = LOG_FILE_PATH, log_level: int = "INFO"):
         # 创建日志目录（如果不存在）
         LOG_DIRECTORY.mkdir(parents=True, exist_ok=True)
     except OSError as e:
-        print(f"Failed to create log directory: {e}")
+        colorprint.red(f"Failed to create log directory: {e}")
         sys.exit(1)
 
     l = loguru.logger
@@ -34,5 +36,6 @@ def init_logger(log_file_path: Path = LOG_FILE_PATH, log_level: int = "INFO"):
     return l
 
 
+colorprint.green("Init logger...")
 Logger = init_logger()
-print("Init logger successfully.")
+colorprint.green("Init logger successfully.")
