@@ -7,6 +7,8 @@ from starlette.status import (HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_401_UNAUTH
                               HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY, HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                               HTTP_500_INTERNAL_SERVER_ERROR)
 
+from pkg import datetime_to_string
+
 
 class CustomORJSONResponse(ORJSONResponse):
     def render(self, content: Any) -> bytes:
@@ -18,8 +20,7 @@ class CustomORJSONResponse(ORJSONResponse):
                     return [convert_value(i) for i in obj]
                 case datetime.datetime() as dt:
                     # 将 datetime 类型转换为 ISO 格式字符串，并标记为 UTC 时间
-                    str_value = dt.isoformat()
-                    return str_value + "Z" if dt.tzinfo is None else str_value
+                    return datetime_to_string(dt)
                 case Decimal() as dec:
                     return float(dec)
                 case int() as i if abs(i) >= 10 ** 15:
