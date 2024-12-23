@@ -43,6 +43,22 @@ def datetime_to_string(val: datetime.datetime) -> str:
         return val.replace(tzinfo=pytz.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+# 将字符串转换为 datetime 对象
+def iso_to_datetime(iso_string: str) -> datetime:
+    """
+    将 ISO 格式的时间字符串转换为 datetime 对象。
+
+    :param iso_string: ISO 格式的时间字符串（例如 "2024-12-23T18:30:00Z" 或 "2024-12-23T18:30:00+00:00"）
+    :return: 转换后的 datetime 对象
+    """
+    try:
+        # 解析 ISO 格式字符串为 datetime 对象
+        dt = datetime.datetime.fromisoformat(iso_string.replace("Z", "+00:00"))
+        return dt
+    except ValueError as e:
+        raise ValueError(f"Invalid ISO format string: {iso_string}") from e
+
+
 def convert_to_utc(val: datetime) -> datetime.datetime:
     """
     将没有时区信息的东八区时间转换为 UTC 时间
