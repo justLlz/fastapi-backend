@@ -23,7 +23,7 @@ def json_loads(*args, **kwargs):
     return orjson.loads(*args, **kwargs)
 
 
-def format_datetime(val: datetime.datetime) -> str:
+def datetime_to_string(val: datetime.datetime) -> str:
     """
     格式化 datetime 对象为字符串。
     - 如果有时区信息，保留时区信息并使用 ISO 格式。
@@ -39,7 +39,7 @@ def format_datetime(val: datetime.datetime) -> str:
         # 有时区信息，保留时区信息并使用 ISO 格式
         return val.isoformat()
     else:
-        # 没有时区信息，假定为 UTC，添加 'Z' 表示 UTC 时间
+        # 没有时区信息，添加 'Z' 表示 UTC 时间
         return val.replace(tzinfo=pytz.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
