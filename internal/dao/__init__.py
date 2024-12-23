@@ -67,7 +67,11 @@ class BaseBuilder:
 
         return self
 
-    def where(self, col: InstrumentedAttribute | Column, value: MixinValType) -> 'BaseBuilder':
+    def where_(self, *conditions) -> "BaseBuilder":
+        self.stmt.where(*conditions)
+        return self
+
+    def where_v1(self, col: InstrumentedAttribute | Column, value: MixinValType) -> 'BaseBuilder':
         """
         Add a single AND condition to the query.
 
@@ -77,7 +81,7 @@ class BaseBuilder:
         """
         return self.add_conditions([(col, value)], logical_operator="and")
 
-    def where_cond(self, *conditions: tuple[InstrumentedAttribute | Column, MixinValType]) -> "BaseBuilder":
+    def where_v2(self, *conditions: tuple[InstrumentedAttribute | Column, MixinValType]) -> "BaseBuilder":
         """
         Add multiple AND conditions to the query.
         :param conditions: A list of tuples where each tuple is (column, value).
@@ -85,17 +89,12 @@ class BaseBuilder:
         """
         return self.add_conditions(list(conditions), logical_operator="and")
 
-    def or_cond(self, *conditions: tuple[InstrumentedAttribute | Column, MixinValType]) -> 'BaseBuilder':
-        """
-        Add multiple OR conditions to the query.
-
-        :param conditions: A list of tuples where each tuple is (column, value).
-        :return: The current instance of BaseBuilder.
-        """
-        return self.add_conditions(list(conditions), logical_operator="or")
+    def or_cond(self, *conditions) -> 'BaseBuilder':
+        self.stmt = self.stmt.where(or_(*conditions))
+        return self
 
     def not_deleted(self) -> 'BaseBuilder':
-        self.add_conditions([(self.model.deleted_at, None)])
+        self.stmt = self.stmt.where(self.model.deleted_at.is_(None))
         return self
 
 

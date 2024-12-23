@@ -19,7 +19,7 @@ class UserService(BaseService):
 
     @classmethod
     async def create_by_phone(cls, _: Request, phone: str) -> ORJSONResponse:
-        user = await cls.querier(User).where(User.phone, phone).get_or_none()
+        user = await cls.querier(User).where_(User.phone, phone).get_or_none()
         if user:
             return resp_failed(HTTP_400_BAD_REQUEST, message="phone already exists")
 
@@ -29,7 +29,7 @@ class UserService(BaseService):
 
     @classmethod
     async def get_user_by_id(cls, _: Request, user_id: int) -> User:
-        user = await cls.querier(User).where(User.id, user_id).get_or_exec()
+        user = await cls.querier(User).where_(User.id, user_id).get_or_exec()
         return user
 
     @classmethod
@@ -61,5 +61,5 @@ class UserService(BaseService):
 
     @classmethod
     async def delete_user(cls, _: Request, user_id: int) -> None:
-        user_ins = await cls.querier(User).where(User.id, user_id).get_or_exec()
+        user_ins = await cls.querier(User).where_(User.id, user_id).get_or_exec()
         await cls.updater(user_ins).values(deleted_at=pkg.get_utc_datetime()).execute()

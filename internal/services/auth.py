@@ -20,7 +20,7 @@ class AuthService(BaseService):
         """
         用户名密码登录
         """
-        user: ManageUser = await (cls.querier(ManageUser).where(ManageUser.account, account).get_or_exec())
+        user: ManageUser = await (cls.querier(ManageUser).where_(ManageUser.account, account).get_or_exec())
         if not verify_password(password, user.password):
             return "", resp_401(message="wrong account or password")
 
@@ -29,7 +29,7 @@ class AuthService(BaseService):
 
     @classmethod
     async def frontend_user_login_or_create(cls, _: Request, phone: str) -> dict:
-        user: User = await (cls.querier(User).where(User.phone, phone).get_or_none())
+        user: User = await (cls.querier(User).where_(User.phone, phone).get_or_none())
         if not user:
             user = User.init_by_phone(phone)
             await user.save()
