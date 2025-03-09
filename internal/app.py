@@ -1,8 +1,6 @@
 import logging
-import os
 import sys
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -33,7 +31,7 @@ def create_app() -> FastAPI:
 
 
 def register_router(app: FastAPI):
-    from internal.servers.test import router as test_router
+    from internal.controllers.test import router as test_router
     app.include_router(test_router)
 
 
@@ -98,18 +96,12 @@ def register_middleware(app: FastAPI):
 # 定义 lifespan 事件处理器
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    colorprint.green("Init lifespan, check...")
+    colorprint.green("Init lifespan...")
     # 检查环境变量
     env_var = get_sys_env_var()
     if env_var not in ["dev", "test", "prod", "local"]:
         colorprint.red(f"Invalid FAST_API_ENV value: {env_var}")
         sys.exit(1)
-
-    # 启动时的检查逻辑
-    uploads_cui_dir = (Path().cwd().parent / "uploads" / "cui")
-    if not uploads_cui_dir.exists():
-        uploads_cui_dir.mkdir(parents=True, exist_ok=True)
-        colorprint.yellow(f"Created missing directory: {uploads_cui_dir}")
 
     colorprint.green("Check completed, Application will start.")
     # 进入应用生命周期

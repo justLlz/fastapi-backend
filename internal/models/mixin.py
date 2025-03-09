@@ -6,7 +6,7 @@ from sqlalchemy import BigInteger, Column, DateTime
 from starlette import status
 
 from internal.infra.db import Base, get_session
-from pkg import format_datetime, get_utc_datetime
+from pkg import datetime_to_string, get_utc_datetime
 from pkg.logger import Logger
 from pkg.snow_flake import snowflake_generator
 
@@ -67,7 +67,7 @@ class ModelMixin(Base):
         for col in self.__mapper__.c.keys():
             val = getattr(self, col)
             if isinstance(val, datetime):
-                val = format_datetime(val)
+                val = datetime_to_string(val)
             d[col] = val
         return d
 
