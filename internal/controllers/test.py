@@ -7,4 +7,5 @@ router = APIRouter(prefix="/test", tags=["test"])
 
 @router.get("/hello_world")
 async def hello_world(request: Request):
+    raise Exception("excx test")
     return await TestService.hello_world(request)

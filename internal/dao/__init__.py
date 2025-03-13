@@ -71,6 +71,12 @@ class BaseBuilder:
         return self
 
     def where_(self, *conditions) -> "BaseBuilder":
+        """
+        example:
+        builder = QueryBuilder(MyModel)
+        builder.where_(MyModel.id == 1, MyModel.name == "Alice")
+        stmt = builder.stmt  # SELECT * FROM my_model WHERE id = 1 AND name = 'Alice'
+        """
         self.stmt.where(*conditions)
         return self
 
@@ -81,6 +87,10 @@ class BaseBuilder:
         :param col: The column for the condition.
         :param value: The value for the condition.
         :return: The current instance of BaseBuilder.
+        example:
+        builder = QueryBuilder(MyModel)
+        builder.where_v1(MyModel.id, 1)
+        stmt = builder.stmt  # SELECT * FROM my_model WHERE id = 1
         """
         return self.add_conditions([(col, value)], logical_operator="and")
 
@@ -89,6 +99,11 @@ class BaseBuilder:
         Add multiple AND conditions to the query.
         :param conditions: A list of tuples where each tuple is (column, value).
         :return: The current instance of BaseBuilder.
+        example:
+        # 查询 id 为 1 且 name 为 "Alice" 的记录
+        builder = QueryBuilder(MyModel)
+        builder.where_v2((MyModel.id, 1), (MyModel.name, "Alice"))
+        stmt = builder.stmt  # SELECT * FROM my_model WHERE id = 1 AND name = 'Alice'
         """
         return self.add_conditions(list(conditions), logical_operator="and")
 
