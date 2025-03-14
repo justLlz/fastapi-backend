@@ -116,8 +116,3 @@ class HTTPXClient:
         """
         response = await self._request("DELETE", endpoint, json=json, headers=headers)
         return response.json()
-
-
-design_gpt_client = HTTPXClient(setting.DESIGN_GPT_API_BASE)
-
-autodl_client = HTTPXClient("https://www.autodl.com")
