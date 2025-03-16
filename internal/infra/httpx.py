@@ -4,8 +4,6 @@ import httpx
 from fastapi import HTTPException, status
 from loguru import logger
 
-from internal.setting import setting
-
 
 class HTTPXClient:
     """
