@@ -202,27 +202,32 @@ class UpdateBuilder(BaseBuilder):
             # 如果是实例，设置 where 条件以匹配该实例的 id
             self.stmt = update(self.model).where(self.model.id == base_model.id)
 
-        self.stmt = self.stmt.values(**{"updated_at": get_utc_datetime()})
+        self.update_dict = {}
 
-    def values(self, **kwargs) -> 'UpdateBuilder':
+    def update_values(self, kwargs: dict) -> 'UpdateBuilder':
         if not kwargs:
             return self
 
-        update_dict: dict[str, Any] = {}
         model_columns = self.model.__mapper__.c.keys()
         for col, value in kwargs.items():
             if col in model_columns:
-                update_dict[col] = value
-
-        if update_dict:
-            self.stmt = self.stmt.values(**update_dict)
+                self.update_dict[col] = value
 
         return self
 
     async def execute(self, session: Optional[AsyncSession] = None):
-        self.stmt = self.stmt.values(updated_at=get_utc_datetime())
-        async with get_session(session) as sess:
+        if not self.update_dict:
+            return
+
+        async with get_session() as sess:
             try:
+                if (deleted_at := self.update_dict.get("deleted_at", None)) is not None:
+                    self.update_dict["updated_at"] = deleted_at
+
+                if self.update_dict.get("updated_at", None) is None:
+                    self.update_dict["updated_at"] = get_utc_datetime()
+
+                self.stmt = self.stmt.values(**self.update_dict)
                 await sess.execute(self.stmt.execution_options(synchronize_session=False))
                 await sess.commit()
             except Exception as e:
@@ -231,7 +236,7 @@ class UpdateBuilder(BaseBuilder):
 
     @classmethod
     async def save(cls, ins: ModelMixin, session: Optional[AsyncSession] = None):
-        async with get_session(session) as sess:
+        async with get_session() as sess:
             try:
                 sess.add(ins)
                 await sess.commit()
