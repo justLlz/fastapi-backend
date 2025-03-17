@@ -2,10 +2,9 @@
 该目录主要用于数据库操作
 """
 from decimal import Decimal
-from typing import Any, Optional, Type, Union
+from typing import Optional, Type, Union
 
 from fastapi import HTTPException
-
 from sqlalchemy import Column, ColumnElement, Select, asc, desc, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
@@ -77,7 +76,7 @@ class BaseBuilder:
         builder.where_(MyModel.id == 1, MyModel.name == "Alice")
         stmt = builder.stmt  # SELECT * FROM my_model WHERE id = 1 AND name = 'Alice'
         """
-        self.stmt.where(*conditions)
+        self.stmt = self.stmt.where(*conditions)
         return self
 
     def where_v1(self, col: InstrumentedAttribute | Column, value: MixinValType) -> 'BaseBuilder':
