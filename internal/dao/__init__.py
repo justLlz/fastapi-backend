@@ -74,6 +74,10 @@ class BaseBuilder:
         builder = QueryBuilder(MyModel)
         builder.where_v1(MyModel.id == 1, MyModel.name == "Alice")
         stmt = builder.stmt  # SELECT * FROM my_model WHERE id = 1 AND name = 'Alice'
+
+        example:
+        filters = [MyModel.id == 1, MyModel.name == "Alice"]
+        builder.where_v1(*filters)
         """
         self.stmt = self.stmt.where(*conditions)
         return self
@@ -85,6 +89,7 @@ class BaseBuilder:
         :param col: The column for the condition.
         :param value: The value for the condition.
         :return: The current instance of BaseBuilder.
+
         example:
         builder = QueryBuilder(MyModel)
         builder.where_v2(MyModel.id, 1)
