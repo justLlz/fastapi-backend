@@ -6,7 +6,6 @@ from typing import Optional, Type, Union
 
 from fastapi import HTTPException
 from sqlalchemy import Column, ColumnElement, Select, asc, desc, func, or_, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
 
@@ -69,17 +68,17 @@ class BaseBuilder:
 
         return self
 
-    def where_(self, *conditions) -> "BaseBuilder":
+    def where_v1(self, *conditions) -> "BaseBuilder":
         """
         example:
         builder = QueryBuilder(MyModel)
-        builder.where_(MyModel.id == 1, MyModel.name == "Alice")
+        builder.where_v1(MyModel.id == 1, MyModel.name == "Alice")
         stmt = builder.stmt  # SELECT * FROM my_model WHERE id = 1 AND name = 'Alice'
         """
         self.stmt = self.stmt.where(*conditions)
         return self
 
-    def where_v1(self, col: InstrumentedAttribute | Column, value: MixinValType) -> 'BaseBuilder':
+    def where_v2(self, col: InstrumentedAttribute | Column, value: MixinValType) -> 'BaseBuilder':
         """
         Add a single AND condition to the query.
 
@@ -88,12 +87,12 @@ class BaseBuilder:
         :return: The current instance of BaseBuilder.
         example:
         builder = QueryBuilder(MyModel)
-        builder.where_v1(MyModel.id, 1)
+        builder.where_v2(MyModel.id, 1)
         stmt = builder.stmt  # SELECT * FROM my_model WHERE id = 1
         """
         return self.add_conditions([(col, value)], logical_operator="and")
 
-    def where_v2(self, *conditions: tuple[InstrumentedAttribute | Column, MixinValType]) -> "BaseBuilder":
+    def where_v3(self, *conditions: tuple[InstrumentedAttribute | Column, MixinValType]) -> "BaseBuilder":
         """
         Add multiple AND conditions to the query.
         :param conditions: A list of tuples where each tuple is (column, value).
@@ -101,17 +100,13 @@ class BaseBuilder:
         example:
         # 查询 id 为 1 且 name 为 "Alice" 的记录
         builder = QueryBuilder(MyModel)
-        builder.where_v2((MyModel.id, 1), (MyModel.name, "Alice"))
+        builder.where_v3((MyModel.id, 1), (MyModel.name, "Alice"))
         stmt = builder.stmt  # SELECT * FROM my_model WHERE id = 1 AND name = 'Alice'
         """
         return self.add_conditions(list(conditions), logical_operator="and")
 
     def or_cond(self, *conditions) -> 'BaseBuilder':
         self.stmt = self.stmt.where(or_(*conditions))
-        return self
-
-    def not_deleted(self) -> 'BaseBuilder':
-        self.stmt = self.stmt.where(self.model.deleted_at.is_(None))
         return self
 
 
@@ -130,8 +125,8 @@ class QueryBuilder(BaseBuilder):
             self.stmt = self.stmt.offset((page - 1) * limit).limit(limit)
         return self
 
-    async def scalars_all(self, session: Optional[AsyncSession] = None) -> list['MixinModelType']:
-        async with get_session(session) as sess:
+    async def scalars_all(self) -> list['MixinModelType']:
+        async with get_session() as sess:
             try:
                 result = await sess.execute(self.stmt)
                 data = result.scalars().all()
@@ -140,8 +135,8 @@ class QueryBuilder(BaseBuilder):
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
         return [i for i in data]
 
-    async def scalar_one_or_none(self, session: Optional[AsyncSession] = None) -> Optional[MixinModelType]:
-        async with get_session(session) as sess:
+    async def scalar_one_or_none(self) -> Optional[MixinModelType]:
+        async with get_session() as sess:
             try:
                 result = await sess.execute(self.stmt)
                 data = result.scalar_one_or_none()
@@ -150,8 +145,8 @@ class QueryBuilder(BaseBuilder):
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
         return data
 
-    async def scalars_first(self, session: Optional[AsyncSession] = None) -> Optional[MixinModelType]:
-        async with get_session(session) as sess:
+    async def scalars_first(self) -> Optional[MixinModelType]:
+        async with get_session() as sess:
             try:
                 result = await sess.execute(self.stmt)
                 data = result.scalars().first()
@@ -160,14 +155,14 @@ class QueryBuilder(BaseBuilder):
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
         return data
 
-    async def get_or_exec(self, session: Optional[AsyncSession] = None) -> Optional[MixinModelType]:
-        data = await self.get_or_none(session)
+    async def get_or_exec(self) -> Optional[MixinModelType]:
+        data = await self.get_or_none()
         if not data:
             raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="not found")
         return data
 
-    async def get_or_none(self, session: Optional[AsyncSession] = None) -> Optional[MixinModelType]:
-        data = await self.scalar_one_or_none(session)
+    async def get_or_none(self) -> Optional[MixinModelType]:
+        data = await self.scalar_one_or_none()
         return data
 
 
@@ -180,8 +175,8 @@ class CountBuilder(BaseBuilder):
         col = self.model.id if col is None else col
         self.stmt = select(func.count(col)).where(base_model.deleted_at.is_(None))
 
-    async def count_value(self, session: Optional[AsyncSession] = None) -> int:
-        async with get_session(session) as sess:
+    async def count_value(self) -> int:
+        async with get_session() as sess:
             try:
                 result = await sess.execute(self.stmt)
                 data = result.scalar()
@@ -214,7 +209,7 @@ class UpdateBuilder(BaseBuilder):
 
         return self
 
-    async def execute(self, session: Optional[AsyncSession] = None):
+    async def execute(self):
         if not self.update_dict:
             return
 
@@ -234,7 +229,7 @@ class UpdateBuilder(BaseBuilder):
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
     @classmethod
-    async def save(cls, ins: ModelMixin, session: Optional[AsyncSession] = None):
+    async def save(cls, ins: ModelMixin):
         async with get_session() as sess:
             try:
                 sess.add(ins)
