@@ -19,7 +19,7 @@ class UserService(BaseService):
 
     @classmethod
     async def create_by_phone(cls, _: Request, phone: str) -> ORJSONResponse:
-        user = await cls.querier(User).where_(User.phone, phone).get_or_none()
+        user = await cls.querier(User).where_v1(User.phone, phone).get_or_none()
         if user:
             return resp_failed(HTTP_400_BAD_REQUEST, message="phone already exists")
 
@@ -29,7 +29,7 @@ class UserService(BaseService):
 
     @classmethod
     async def get_user_by_id(cls, _: Request, user_id: int) -> User:
-        user = await cls.querier(User).where_(User.id, user_id).get_or_exec()
+        user = await cls.querier(User).where_v1(User.id, user_id).get_or_exec()
         return user
 
     @classmethod
@@ -44,14 +44,9 @@ class UserService(BaseService):
                 change_dict[k] = [old_val, new_val]
                 setattr(user_ins, k, new_val)
 
-        try:
-            async with get_session() as session:
-                await session.execute(cls.updater(user_ins).values(**update_dict).stmt)
-                await session.commit()
-        except Exception as e:
-            Logger.error(f"user_update error: {repr(e)}")
-            raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+        await cls.updater(user_ins).update_values(**change_dict).execute()
 
+        session = ""
         # 更新缓存
         user = await cls.get_user_by_id(request, user_ins.id)
         await cls.cache.set_session(session, user.to_dict())
@@ -61,5 +56,5 @@ class UserService(BaseService):
 
     @classmethod
     async def delete_user(cls, _: Request, user_id: int) -> None:
-        user_ins = await cls.querier(User).where_(User.id, user_id).get_or_exec()
+        user_ins = await cls.querier(User).where_v1(User.id, user_id).get_or_exec()
         await cls.updater(user_ins).values(deleted_at=pkg.get_utc_datetime()).execute()
