@@ -12,12 +12,13 @@ from pkg.snow_flake import snowflake_generator
 
 
 class ModelMixin(Base):
+    """统一存UTC时间不带时区信息，时区处理"""
     __abstract__ = True
 
     id = Column(BigInteger, primary_key=True)
-    deleted_at = Column(DateTime, nullable=True, default=None)
-    updated_at = Column(DateTime)
-    created_at = Column(DateTime)
+    deleted_at = Column(DateTime(False), nullable=True, default=None)
+    updated_at = Column(DateTime(False))
+    created_at = Column(DateTime(False))
 
     async def save(self):
         try:
@@ -56,7 +57,6 @@ class ModelMixin(Base):
         return diff
 
     def _populate(self, data: dict):
-        # 使用 __mapper__.c 遍历字段以提高效率
         cols = self.__mapper__.c.keys()
         for col, value in data.items():
             if col in cols:

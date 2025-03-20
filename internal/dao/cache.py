@@ -1,3 +1,6 @@
+import asyncio
+import time
+import uuid
 from typing import Optional, Any
 
 from fastapi import HTTPException, status
@@ -211,3 +214,77 @@ class Cache:
         await cls.set_session(session, user_data)
         await cls.set_session_list(user_id, session)
         return session
+
+    @classmethod
+    async def release_lock(cls, lock_key: str, identifier: str) -> bool:
+        """
+        释放分布式锁
+        :param lock_key: 锁的键名
+        :param identifier: 锁的唯一标识符
+        :return: 是否成功释放
+        """
+        # 解锁的 Lua 脚本（保持原有）
+        unlock_script = """
+        if redis.call('GET', KEYS[1]) == ARGV[1] then
+            return redis.call('DEL', KEYS[1])
+        else
+            return 0
+        end
+        """
+
+        async with get_redis() as redis:
+            result = await redis.eval(
+                unlock_script,
+                1,  # 键数量
+                lock_key,
+                identifier
+            )
+        return bool(result)
+
+    @classmethod
+    async def acquire_lock(
+            cls,
+            lock_key: str,
+            expire_ms: int = 10000,
+            timeout_ms: int = 5000,
+            retry_interval_ms: int = 100
+    ) -> Optional[str]:
+        """
+        获取分布式锁
+        :param lock_key: 锁的键名
+        :param expire_ms: 锁的自动过期时间（毫秒）
+        :param timeout_ms: 获取锁的总超时时间（毫秒）
+        :param retry_interval_ms: 重试间隔（毫秒）
+        :return: 锁的唯一标识符（获取失败返回 None）
+        """
+
+        # 加锁的 Lua 脚本（保证原子性）
+        lock_script = """
+        if redis.call('SET', KEYS[1], ARGV[1], 'NX', 'PX', ARGV[2]) then
+            return 1
+        else
+            return 0
+        end
+        """
+
+        identifier = str(uuid.uuid4().hex)
+        start_time = time.perf_counter()
+
+        while (time.perf_counter() - start_time) * 1000 < timeout_ms:
+            # 原子性尝试加锁
+            async with  get_redis() as redis:
+                acquired = await redis.eval(
+                    lock_script,
+                    1,  # 键数量
+                    lock_key,
+                    identifier,
+                    str(expire_ms)
+                )
+
+                if acquired:
+                    return identifier
+
+                # 等待重试
+                await asyncio.sleep(retry_interval_ms / 1000)
+
+        return None
