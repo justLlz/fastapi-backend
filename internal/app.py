@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError, HTTPException
 
 from internal.setting import setting
-from pkg import colorprint, get_sys_env_var, resp
+from pkg import colorprint, get_sys_env_var, handle_resp
 
 
 def create_app() -> FastAPI:

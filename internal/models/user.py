@@ -1,7 +1,7 @@
-from internal.models.mixin import ModelMixin
+from internal.models import MixinModel
 
 
-class User(ModelMixin):
+class User(MixinModel):
     account = None
     phone = None
 
@@ -12,6 +12,6 @@ class User(ModelMixin):
         )
 
 
-class ManageUser(ModelMixin):
+class ManageUser(MixinModel):
     account = None
     password = None

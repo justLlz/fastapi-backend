@@ -8,7 +8,7 @@ from internal.models.user import User
 from internal.services import BaseService
 
 from pkg.logger import Logger
-from pkg.resp import resp_failed, resp_success
+from pkg.handle_resp import resp_failed, resp_success
 
 
 class UserService(BaseService):

@@ -59,5 +59,6 @@ uvicorn==0.32.0
 watchfiles==0.24.0
 websockets==13.1
 xxhash==3.5.0
+aiofiles
 
 colorama~=0.4.6

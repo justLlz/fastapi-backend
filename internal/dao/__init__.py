@@ -10,7 +10,7 @@ from sqlalchemy.orm import InstrumentedAttribute
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
 
 from internal.infra.db import get_session
-from internal.models.mixin import ModelMixin
+from internal.models import MixinModel
 from internal.utils.mixin_type import MixinModelType, MixinValType, normalize_column
 from pkg import get_utc_datetime, unique_iterable
 from pkg.logger import Logger
@@ -22,7 +22,7 @@ class Sort:
 
 
 class BaseBuilder:
-    def __init__(self, base_model: Type[ModelMixin]):
+    def __init__(self, base_model: Type[MixinModel]):
         self.model = base_model
         self.stmt: Select = Select()
 
@@ -116,7 +116,7 @@ class BaseBuilder:
 
 
 class QueryBuilder(BaseBuilder):
-    def __init__(self, model: Type[ModelMixin]):
+    def __init__(self, model: Type[MixinModel]):
         super().__init__(model)
         self.stmt: Select = select(self.model).where(model.deleted_at.is_(None))
 
@@ -172,7 +172,7 @@ class QueryBuilder(BaseBuilder):
 
 
 class CountBuilder(BaseBuilder):
-    def __init__(self, base_model: Type[ModelMixin], col: InstrumentedAttribute | Column = None):
+    def __init__(self, base_model: Type[MixinModel], col: InstrumentedAttribute | Column = None):
         if col is not None and not isinstance(col, (InstrumentedAttribute, Column)):
             raise ValueError(f"Unsupported type for 'col': {type(col).__name__}. Expected InstrumentedAttribute.")
 
@@ -192,7 +192,7 @@ class CountBuilder(BaseBuilder):
 
 
 class UpdateBuilder(BaseBuilder):
-    def __init__(self, base_model: Union[Type[ModelMixin], ModelMixin]):
+    def __init__(self, base_model: Union[Type[MixinModel], MixinModel]):
         super().__init__(base_model if isinstance(base_model, type) else base_model.__class__)
         # 判断 base_model 是否为类，如果是类则创建不带条件的更新语句
         if isinstance(base_model, type):
@@ -234,7 +234,7 @@ class UpdateBuilder(BaseBuilder):
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
     @classmethod
-    async def save(cls, ins: ModelMixin):
+    async def save(cls, ins: MixinModel):
         async with get_session() as sess:
             try:
                 sess.add(ins)
