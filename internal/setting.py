@@ -8,6 +8,7 @@ from pkg import colorprint, get_sys_env_var
 
 @lru_cache
 def init_setting() -> BaseConfig:
+    colorprint.green("Init setting...")
     cur_env_var = get_sys_env_var()
     colorprint.green(f"Current environment: {cur_env_var}.")
 
@@ -25,13 +26,13 @@ def init_setting() -> BaseConfig:
 
     env_file_path = (Path().cwd() / "configs" / f".env.{cur_env_var}").as_posix()
     colorprint.green(f"Env file path: {env_file_path}.")
-    return config_class(_env_file=env_file_path, _env_file_encoding="utf-8")
+    s = config_class(_env_file=env_file_path, _env_file_encoding="utf-8")
+    colorprint.green("Init setting successfully.")
+    colorprint.yellow("==========================")
+    for k, v in setting.dict().items():
+        colorprint.yellow(f"{k}: {v}")
+    colorprint.yellow("==========================")
+    return s
 
 
-colorprint.green("Init setting...")
 setting: BaseConfig = init_setting()
-colorprint.yellow("==========================")
-for k, v in setting.dict().items():
-    colorprint.yellow(f"{k}: {v}")
-colorprint.yellow("==========================")
-colorprint.green("Init setting successfully.")
