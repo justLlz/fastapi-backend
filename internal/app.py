@@ -41,12 +41,12 @@ def register_exception(app: FastAPI):
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(_: Request, exc: RequestValidationError):
         _record_log_error("Validation Error", repr(exc))
-        return resp.resp_422(message=f"Validation Error: {exc}")
+        return handle_resp.resp_422(message=f"Validation Error: {exc}")
 
     @app.exception_handler(HTTPException)
     async def http_exception_handler(_: Request, exc: HTTPException):
         exec_detail, exec_status_code = exc.detail, exc.status_code
-        return resp.custom_response(
+        return handle_resp.custom_response(
             status_code=exec_status_code,
             code=str(exec_status_code),
             message=exec_detail,
@@ -56,7 +56,7 @@ def register_exception(app: FastAPI):
     @app.exception_handler(Exception)
     async def all_exception_handler(_: Request, exc: Exception):
         _record_log_error("Internal Server Error", repr(exc))
-        return resp.resp_500(message=f"Internal Server Error: {exc}")
+        return handle_resp.resp_500(message=f"Internal Server Error: {exc}")
 
 
 def register_middleware(app: FastAPI):
