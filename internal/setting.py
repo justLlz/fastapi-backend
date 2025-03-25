@@ -29,7 +29,7 @@ def init_setting() -> BaseConfig:
     s = config_class(_env_file=env_file_path, _env_file_encoding="utf-8")
     colorprint.green("Init setting successfully.")
     colorprint.yellow("==========================")
-    for k, v in setting.dict().items():
+    for k, v in s.dict().items():
         colorprint.yellow(f"{k}: {v}")
     colorprint.yellow("==========================")
     return s

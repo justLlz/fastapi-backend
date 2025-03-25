@@ -7,7 +7,7 @@ from starlette.responses import Response
 from pkg.logger import Logger
 
 
-class LoggerMiddleware(BaseHTTPMiddleware):
+class RecorderMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         # 获取 trace_id，若不存在则生成一个新的
         trace_id = request.headers.get("X-Trace-ID", str(uuid.uuid4().hex))

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
 from redis.asyncio import ConnectionPool, Redis
 from sqlalchemy import Engine, event, text
@@ -27,7 +28,7 @@ AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_
 
 # 创建依赖：每次请求使用一个数据库会话
 @asynccontextmanager
-async def get_session() -> AsyncSession:
+async def get_session() -> AsyncGenerator[AsyncSession]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -58,7 +59,7 @@ RedisConnectPool = ConnectionPool.from_url(setting.redis_url, encoding="utf-8", 
 
 
 @asynccontextmanager
-async def get_redis() -> Redis:
+async def get_redis() -> AsyncGenerator[Redis]:
     redis = Redis(connection_pool=RedisConnectPool)  # 使用连接池创建 Redis 客户端
     try:
         yield redis

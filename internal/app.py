@@ -22,8 +22,8 @@ def create_app() -> FastAPI:
     register_exception(app)
     register_middleware(app)
 
-    # 清除uvicorn相关日志记录器的默认处理程序
-    logging.getLogger("uvicorn.access").handlers = []
+    # 清除uvicorn相关日志记录器的默认处理日志处理器
+    # logging.getLogger("uvicorn.access").handlers = []
     # logging.getLogger("uvicorn.error").handlers = []
     # logging.getLogger("uvicorn").handlers = []
     return app
@@ -77,8 +77,8 @@ def register_middleware(app: FastAPI):
     app.add_middleware(AuthMiddleware)
 
     # 2. 日志中间件：记录请求和响应的日志，监控 API 性能和请求流
-    from internal.middleware.logger import LoggerMiddleware
-    app.add_middleware(LoggerMiddleware)
+    from internal.middleware.recorder import RecorderMiddleware
+    app.add_middleware(RecorderMiddleware)
 
     # 1. CORS 中间件：处理跨域请求
     if setting.BACKEND_CORS_ORIGINS:
