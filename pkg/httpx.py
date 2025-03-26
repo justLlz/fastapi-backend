@@ -56,10 +56,10 @@ class HTTPXClient:
                 return response
         except httpx.HTTPStatusError as exc:
             # 处理 HTTP 错误状态码（如 4xx，5xx）
-            logger.error(f"HTTP Status Error: {exc.response.status_code} - {exc.response.text}")
+            logger.error(f"HTTPxStatusError: {exc.response.status_code} - {exc.response.text}")
             raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text)
         except httpx.RequestError as e:
-            logger.error(f"HTTP RequestError Error: {repr(e)}")
+            logger.error(f"HTTPxRequestError: {repr(e)}")
             # 处理请求错误，例如网络问题
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
