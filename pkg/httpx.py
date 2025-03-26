@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import httpx
 from fastapi import HTTPException, status
@@ -62,6 +62,73 @@ class HTTPXClient:
             logger.error(f"HTTPxRequestError: {repr(e)}")
             # 处理请求错误，例如网络问题
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        except Exception as exc:
+            # 处理其他未预料到的异常
+            logger.error(f"UnexpectedError: {repr(exc)}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+
+    async def request_and_return(
+            self,
+            method: str,
+            endpoint: str,
+            params: Optional[Dict[str, Any]] = None,
+            data: Optional[Union[Dict[str, Any], str]] = None,
+            json: Optional[Dict[str, Any]] = None,
+            headers: Optional[Dict[str, str]] = None,
+            timeout: Optional[int] = None,
+    ) -> Tuple[int, Union[Dict[str, Any], str, None], Optional[str]]:
+        """
+        统一的请求方法
+        :param method: 请求方法 (GET, POST, PUT, DELETE)
+        :param endpoint: 接口路径
+        :param params: 查询参数
+        :param data: 表单数据
+        :param json: JSON 数据
+        :param headers: 请求头
+        :param timeout: 超时时间
+        :return: 元组 (status_code, response_data, error_message)
+        """
+        logger.info(f"Requesting {method} {endpoint}")
+        try:
+            async with httpx.AsyncClient(base_url=self.base_url, timeout=timeout or self.timeout) as client:
+                response = await client.request(
+                    method=method.upper(),
+                    url=endpoint.lstrip('/'),
+                    params=params,
+                    data=data,
+                    json=json,
+                    headers={**self.headers, **(headers or {})},
+                )
+                response.raise_for_status()
+
+                # 尝试解析JSON响应，失败则返回原始文本
+                try:
+                    response_data = response.json()
+                except ValueError:
+                    response_data = response.text
+
+                return response.status_code, response_data, None
+        except httpx.HTTPStatusError as exc:
+            # 处理 HTTP 错误状态码（如 4xx，5xx）
+            status_code = exc.response.status_code
+            logger.error(f"HTTPxStatusError: {status_code} - {exc.response.text}")
+
+            try:
+                error_data = exc.response.json()
+            except ValueError:
+                error_data = exc.response.text
+
+            return exc.response.status_code, error_data, f"HTTPxStatusError: {status_code}"
+
+        except httpx.RequestError as exc:
+            # 处理请求错误（网络问题、连接超时等）
+            logger.error(f"HTTPxRequestError: {repr(exc)}")
+            return 500, None, f"HTTPxStatusError： {exc}"
+
+        except Exception as exc:
+            # 处理其他未预料到的异常
+            logger.error(f"UnexpectedError: {repr(exc)}")
+            return 500, None, f"UnexpectedError: {exc}"
 
     async def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None,
                   headers: Optional[Dict[str, str]] = None) -> Any:

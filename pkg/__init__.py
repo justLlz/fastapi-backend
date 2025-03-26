@@ -7,6 +7,7 @@ import time
 import random
 import uuid
 from typing import List, Optional
+from urllib.parse import urlencode, urlunparse
 
 import colorama
 import orjson
@@ -209,6 +210,53 @@ def generate_account_by_phone(phone_number: str) -> str:
     return unique_account_id
 
 
+def build_url(
+        scheme: str = "http",
+        netloc: str = "localhost",
+        path: str = "/",
+        query: Optional[dict] = None,  # 仅支持字典或 None
+        fragment: str = ""
+):
+    """
+    构建一个 URL，使用默认值填充缺失的部分。
+
+    :param scheme: URL 协议（默认为 "http"）
+    :param netloc: 网络位置（默认为 "localhost"）
+    :param path: 资源路径（默认为 "/"）
+    :param query: 查询字符串，必须是字典类型或 None（默认为 None）
+    :param fragment: 片段标识符（默认为 ""）
+    :return: 组装后的完整 URL
+
+    示例：
+    >>> build_url(scheme="https", path="api", query={"page": 2, "sort": "desc"})
+    'https://localhost/api?page=2&sort=desc'
+
+    >>> build_url(path="search", query={"q": "python"})
+    'http://localhost/search?q=python'
+
+    >>> build_url(path="profile")
+    'http://localhost/profile'
+    """
+    # 处理 path，确保以 `/` 开头
+    path = "/" + path.lstrip("/") if path else "/"
+
+    # 处理 query（如果是字典，转换为 URL 编码字符串）
+    if query is None:
+        query_string = ""
+    elif isinstance(query, dict):
+        query_string = urlencode(query)
+    else:
+        raise ValueError("query must be none or dict")
+
+    # 根据 scheme 设定默认 netloc
+    if not netloc:
+        netloc = "localhost:443" if scheme == "https" else "localhost:80"
+
+    # 组装 URL（去掉 params 参数）
+    return urlunparse((scheme, netloc, path, "", query_string, fragment))
+
+
+
 class ColorPrint:
     colorama.init(autoreset=True)
 
@@ -227,6 +275,5 @@ class ColorPrint:
     @staticmethod
     def blue(text):
         print(colorama.Fore.BLUE + text)
-
 
 colorprint = ColorPrint()
