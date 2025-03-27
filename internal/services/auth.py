@@ -14,25 +14,26 @@ class AuthService(BaseService):
     认证服务
     """
 
-    @classmethod
     async def backend_user_login(
-            cls, _: Request, account: str, password: str) -> (str, Optional[ORJSONResponse]):
+            self, _: Request, account: str, password: str) -> (str, Optional[ORJSONResponse]):
         """
         用户名密码登录
         """
-        user: ManageUser = await (cls.querier(ManageUser).where_(ManageUser.account, account).get_or_exec())
+        user: ManageUser = await (self.querier(ManageUser).where_(ManageUser.account, account).get_or_exec())
         if not verify_password(password, user.password):
             return "", resp_401(message="wrong account or password")
 
-        session = await cls.cache.login_and_set_session(user.to_dict())
+        session = await self.cache.login_and_set_session(user.to_dict())
         return session, None
 
-    @classmethod
-    async def frontend_user_login_or_create(cls, _: Request, phone: str) -> dict:
-        user: User = await (cls.querier(User).where_(User.phone, phone).get_or_none())
+    async def frontend_user_login_or_create(self, _: Request, phone: str) -> dict:
+        user: User = await (self.querier(User).where_(User.phone, phone).get_or_none())
         if not user:
             user = User.init_by_phone(phone)
             await user.save()
 
-        session = await cls.cache.login_and_set_session(user.to_dict())
+        session = await self.cache.login_and_set_session(user.to_dict())
         return {"session": session}
+
+
+auth_srv = AuthService()

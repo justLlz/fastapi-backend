@@ -13,13 +13,8 @@ from pkg.handle_resp import resp_failed, resp_success
 
 class UserService(BaseService):
 
-    @classmethod
-    async def hello(cls, *args, **kwargs):
-        return resp_success()
-
-    @classmethod
-    async def create_by_phone(cls, _: Request, phone: str) -> ORJSONResponse:
-        user = await cls.querier(User).where_v1(User.phone, phone).get_or_none()
+    async def create_by_phone(self, _: Request, phone: str) -> ORJSONResponse:
+        user = await self.querier(User).where_v1(User.phone, phone).get_or_none()
         if user:
             return resp_failed(HTTP_400_BAD_REQUEST, message="phone already exists")
 
@@ -27,13 +22,11 @@ class UserService(BaseService):
         await user.save()
         return resp_success()
 
-    @classmethod
-    async def get_user_by_id(cls, _: Request, user_id: int) -> User:
-        user = await cls.querier(User).where_v1(User.id, user_id).get_or_exec()
+    async def get_user_by_id(self, _: Request, user_id: int) -> User:
+        user = await self.querier(User).where_v1(User.id, user_id).get_or_exec()
         return user
 
-    @classmethod
-    async def update_user(cls, request: Request, user_ins: User, update_dict: dict) -> User:
+    async def update_user(self, request: Request, user_ins: User, update_dict: dict) -> User:
         change_dict = {}
         cols = user_ins.__mapper__.c.keys()
         for k, new_val in update_dict.items():
@@ -44,17 +37,19 @@ class UserService(BaseService):
                 change_dict[k] = [old_val, new_val]
                 setattr(user_ins, k, new_val)
 
-        await cls.updater(user_ins).update_values(**change_dict).execute()
+        await self.updater(user_ins).update_values(**change_dict).execute()
 
         session = ""
         # 更新缓存
-        user = await cls.get_user_by_id(request, user_ins.id)
-        await cls.cache.set_session(session, user.to_dict())
+        user = await self.get_user_by_id(request, user_ins.id)
+        await self.cache.set_session(session, user.to_dict())
 
-        user = await cls.get_user_by_id(request, user_ins.id)
+        user = await self.get_user_by_id(request, user_ins.id)
         return user
 
-    @classmethod
-    async def delete_user(cls, _: Request, user_id: int) -> None:
-        user_ins = await cls.querier(User).where_v1(User.id, user_id).get_or_exec()
-        await cls.updater(user_ins).values(deleted_at=pkg.get_utc_datetime()).execute()
+    async def delete_user(self, _: Request, user_id: int) -> None:
+        user_ins = await self.querier(User).where_v1(User.id, user_id).get_or_exec()
+        await self.updater(user_ins).values(deleted_at=pkg.get_utc_datetime()).execute()
+
+
+user_srv = UserService()

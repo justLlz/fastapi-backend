@@ -5,6 +5,9 @@ from pkg.handle_resp import resp_200
 
 
 class TestService:
-    @staticmethod
-    async def hello_world(request: Request) -> ORJSONResponse:
+
+    async def hello_world(self, request: Request) -> ORJSONResponse:
         return resp_200(data={"msg": "hello world"})
+
+
+test_srv = TestService()
