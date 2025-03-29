@@ -1,8 +1,11 @@
 import datetime
 from decimal import Decimal
+from uuid import UUID
+
 from fastapi.responses import ORJSONResponse
 from typing import Any, Union
 from orjson import orjson
+from pydantic.v1 import BaseModel
 from starlette.status import (HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN,
                               HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY, HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                               HTTP_500_INTERNAL_SERVER_ERROR)
@@ -13,30 +16,34 @@ from pkg import datetime_to_string
 class CustomORJSONResponse(ORJSONResponse):
     def render(self, content: Any) -> bytes:
         def convert_value(obj: Any) -> Any:
+            """递归转换特殊数据类型"""
             match obj:
                 case dict():
                     return {k: convert_value(v) for k, v in obj.items()}
-                case list():
+                case list() | tuple():
                     return [convert_value(i) for i in obj]
                 case datetime.datetime() as dt:
-                    # 将 datetime 类型转换为 ISO 格式字符串，并标记为 UTC 时间
-                    return datetime_to_string(dt)
+                    # 确保 datetime 转换为 ISO 8601 格式
+                    return dt.isoformat() + "Z" if dt.tzinfo else dt.isoformat()
                 case Decimal() as dec:
-                    return float(dec)
-                case int() as i if abs(i) >= 10 ** 15:
-                    # 超长整数转换为字符串
+                    return str(dec)  # 避免浮点数精度丢失
+                case int() as i if abs(i) >= 2 ** 53:  # 避免 JavaScript 精度问题
                     return str(i)
+                case set():
+                    return list(obj)  # JSON 不支持 set，转换为 list
+                case bytes():
+                    return obj.decode("utf-8", "ignore")  # 转换为字符串
                 case _:
                     return obj
 
-        # 转换内容中的特定数据类型
-        content = convert_value(content)
-
-        # 使用 orjson.dumps 序列化数据
-        return orjson.dumps(
-            content,
-            option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY
-        )
+        try:
+            content = convert_value(content)
+            return orjson.dumps(
+                content,
+                option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY | orjson.OPT_PASSTHROUGH_DATETIME,
+            )
+        except Exception as e:
+            raise ValueError(f"JSON 序列化失败: {e}") from e
 
 
 # 通用响应函数，用于避免重复代码
