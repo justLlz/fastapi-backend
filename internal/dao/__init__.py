@@ -180,7 +180,7 @@ class CountBuilder(BaseBuilder):
         col = self.model.id if col is None else col
         self.stmt = select(func.count(col)).where(base_model.deleted_at.is_(None))
 
-    async def count_value(self) -> int:
+    async def count(self) -> int:
         async with get_session() as sess:
             try:
                 result = await sess.execute(self.stmt)
@@ -203,7 +203,7 @@ class UpdateBuilder(BaseBuilder):
 
         self.update_dict = {}
 
-    def update_values(self, kwargs: dict) -> 'UpdateBuilder':
+    def update(self, kwargs: dict) -> 'UpdateBuilder':
         if not kwargs:
             return self
 
@@ -218,15 +218,16 @@ class UpdateBuilder(BaseBuilder):
         if not self.update_dict:
             return
 
+        if (deleted_at := self.update_dict.get("deleted_at", None)) is not None:
+            self.update_dict["updated_at"] = deleted_at
+
+        if self.update_dict.get("updated_at", None) is None:
+            self.update_dict["updated_at"] = get_utc_datetime()
+
+        self.stmt = self.stmt.values(**self.update_dict)
+
         async with get_session() as sess:
             try:
-                if (deleted_at := self.update_dict.get("deleted_at", None)) is not None:
-                    self.update_dict["updated_at"] = deleted_at
-
-                if self.update_dict.get("updated_at", None) is None:
-                    self.update_dict["updated_at"] = get_utc_datetime()
-
-                self.stmt = self.stmt.values(**self.update_dict)
                 await sess.execute(self.stmt.execution_options(synchronize_session=False))
                 await sess.commit()
             except Exception as e:

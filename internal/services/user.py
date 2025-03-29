@@ -37,7 +37,7 @@ class UserService(BaseService):
                 change_dict[k] = [old_val, new_val]
                 setattr(user_ins, k, new_val)
 
-        await self.updater(user_ins).update_values(**change_dict).execute()
+        await self.updater(user_ins).update(**change_dict).execute()
 
         session = ""
         # 更新缓存
