@@ -1,7 +1,7 @@
 from fastapi import Request
 from fastapi.responses import ORJSONResponse
 
-from pkg.handle_resp import resp_200
+from pkg.resp import resp_200
 
 
 class TestService:

@@ -1,47 +1,56 @@
 import datetime
-import uuid
 from decimal import Decimal
+from typing import Any, Union
 
 from fastapi.responses import ORJSONResponse
-from typing import Any, Union
 from orjson import orjson
 from starlette.status import (HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN,
-                              HTTP_404_NOT_FOUND, HTTP_422_UNPROCESSABLE_ENTITY, HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                              HTTP_404_NOT_FOUND, HTTP_413_REQUEST_ENTITY_TOO_LARGE, HTTP_422_UNPROCESSABLE_ENTITY,
                               HTTP_500_INTERNAL_SERVER_ERROR)
-
-from pkg import datetime_to_string
 
 
 class CustomORJSONResponse(ORJSONResponse):
+    SERIALIZER_OPTIONS = (
+            orjson.OPT_SERIALIZE_NUMPY |
+            orjson.OPT_SERIALIZE_UUID |
+            orjson.OPT_NON_STR_KEYS |
+            orjson.OPT_NAIVE_UTC |
+            orjson.OPT_UTC_Z |
+            orjson.OPT_OMIT_MICROSECONDS
+    )
+
     def render(self, content: Any) -> bytes:
+
         def custom_serializer(obj: Any) -> Any:
-            """递归转换特殊数据类型"""
-            match obj:
-                case dict():
-                    return {k: custom_serializer(v) for k, v in obj.items()}
-                case list() | tuple():
-                    return [custom_serializer(i) for i in obj]
-                case datetime.datetime() as dt:
-                    # 确保 datetime 转换为 ISO 8601 格式
-                    return datetime_to_string(dt)
-                case Decimal() as dec:
-                    return str(dec)  # 避免浮点数精度丢失
-                case int() as i if abs(i) >= 2 ** 53:  # 避免 JavaScript 精度问题
-                    return str(i)
-                case set():
-                    return list(obj)  # JSON 不支持 set，转换为 list
-                case bytes():
-                    return obj.decode("utf-8", "ignore")  # 转换为字符串
-                case uuid.UUID() as u:
-                    return str(u)  # UUID 转换为字符串
-                case _:
-                    return obj
+            if isinstance(obj, dict):
+                return {k: custom_serializer(v) for k, v in obj.items()}
+
+            if isinstance(obj, (list, tuple, set, frozenset)):
+                return [custom_serializer(i) for i in obj]
+
+            if isinstance(obj, datetime.datetime):
+                # 确保 datetime 转换为 ISO 8601 格式
+                if obj.tzinfo is None:
+                    obj = obj.replace(tzinfo=datetime.timezone.utc)
+                return obj.isoformat().replace("+00:00", "Z")
+
+            if isinstance(obj, Decimal):
+                return float(obj) if obj.as_tuple().exponent >= -6 else str(obj)  # 避免浮点数精度丢失
+
+            if isinstance(obj, int) and abs(obj) >= 2 ** 53:
+                return str(obj)
+
+            if isinstance(obj, bytes):
+                return obj.decode("utf-8", "ignore")  # 转换为字符串
+
+            return obj
 
         try:
             content = custom_serializer(content)
             return orjson.dumps(
                 content,
-                option=orjson.OPT_NAIVE_UTC | orjson.OPT_SERIALIZE_NUMPY | orjson.OPT_PASSTHROUGH_DATETIME | orjson.OPT_STRICT_INTEGER,
+                option=self.SERIALIZER_OPTIONS,
+                default=custom_serializer,
             )
         except Exception as e:
             raise ValueError(f"CustomORJSONResponse serializer fail: {e}") from e

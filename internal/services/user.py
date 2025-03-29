@@ -5,7 +5,7 @@ from starlette.status import HTTP_400_BAD_REQUEST
 import pkg
 from internal.models.user import User
 from internal.services import BaseService
-from pkg.handle_resp import resp_failed, resp_success
+from pkg.resp import resp_failed, resp_success
 
 
 class UserService(BaseService):

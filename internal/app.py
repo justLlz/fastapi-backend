@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError, HTTPException
 
 from internal.setting import setting
-from pkg import colorprint, get_sys_env_var, handle_resp
+from pkg import colorprint, get_sys_env_var, resp
 
 
 def create_app() -> FastAPI:
@@ -69,7 +69,7 @@ def register_middleware(app: FastAPI):
     app.add_middleware(ExceptionHandlingMiddleware)
 
     # 4. 限制上传文件大小
-    from internal.middleware.limit_upload_size import LimitUploadSizeMiddleware
+    from internal.middleware.upload_size import LimitUploadSizeMiddleware
     app.add_middleware(LimitUploadSizeMiddleware)
 
     # 3. 认证中间件：校验 Token，确保只有合法用户访问 API

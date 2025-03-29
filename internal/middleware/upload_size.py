@@ -1,7 +1,7 @@
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
-from pkg.handle_resp import resp_413
+from pkg.resp import resp_413
 
 MAX_UPLOAD_SIZE = 10 * 1024 * 1024  # 10MB
 

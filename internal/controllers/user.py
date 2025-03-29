@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, Request
 from typing import Annotated
 from internal.services.user import user_srv
-from pkg.handle_resp import resp_200
+from pkg.resp import resp_200
 
 router = APIRouter(prefix="/test", tags=["test"])
 

@@ -6,7 +6,7 @@ from fastapi.responses import ORJSONResponse
 from internal.core.bcrypt import verify_password
 from internal.models.user import ManageUser, User
 from internal.services import BaseService
-from pkg.handle_resp import resp_401
+from pkg.resp import resp_401
 
 
 class AuthService(BaseService):
