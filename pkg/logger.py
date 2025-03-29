@@ -1,40 +1,61 @@
+import os
 import sys
-import time
 from pathlib import Path
 
-import loguru
+from loguru import logger
+from pkg import colorprint, get_sys_env_var
 
-from pkg import colorprint
+
+class LogConfig:
+    """日志配置中心"""
+    LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    DIR: Path = Path(__file__).parent.parent / "logs"
+    FILE_NAME: str = "app_{time:YYYY-MM-DD}.log"
+    ROTATION: str = os.getenv("LOG_ROTATION", "100 MB")  # 支持大小/时间轮转
+    RETENTION: str = os.getenv("LOG_RETENTION", "30 days")
+    COMPRESSION: str = "zip"  # 压缩格式
 
 
-def init_logger(log_level: int = "INFO"):
-    # 定义日志路径和格式
-    log_directory: Path = Path().cwd() / 'logs'
-    log_file_path: Path = log_directory.joinpath(f"{time.strftime('%Y-%m-%d')}_error.log")
-    log_format: str = "{time:YYYY-MM-DD HH:mm:ss ZZ}|{level}|{name}:{line}|{extra[trace_id]}: {message}"
+class LogFormat:
+    """日志格式模板"""
+    CONSOLE = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{line}</cyan> | <magenta>{extra[trace_id]}</magenta> - <level>{message}</level>"
+    FILE = "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{line} | {extra[trace_id]} - {message}"
 
+
+def init_logger(env: str = "dev") -> logger:
     colorprint.green("Init logger...")
     """设置日志记录器的配置"""
     try:
-        # 创建日志目录（如果不存在）
-        log_directory.mkdir(parents=True, exist_ok=True)
+        LogConfig.DIR.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         colorprint.red(f"Failed to create log directory: {e}")
         sys.exit(1)
 
-    l = loguru.logger
-    l = l.patch(lambda record: record["extra"].setdefault("trace_id", "-"))
-    # 添加文件日志处理器
-    l.add(
-        sink=log_file_path,
-        format=log_format,
-        level=log_level,
-        rotation="12:00",  # 每天中午12点轮转
-        retention="7 days",  # 保留7天的日志
-        enqueue=True
-    )
+    logger.remove()
+    logger.configure(extra={"trace_id": "-"})
+
+    if env in ("dev", "local"):
+        logger.add(
+            sink=sys.stderr,
+            format=LogFormat.CONSOLE,
+            level=LogConfig.LEVEL,
+            enqueue=True,
+            colorize=True
+        )
+    else:
+        logger.add(
+            sink=LogConfig.DIR / LogConfig.FILE_NAME,
+            format=LogFormat.FILE,
+            level=LogConfig.LEVEL,
+            rotation=LogConfig.ROTATION,
+            retention=LogConfig.RETENTION,
+            compression=LogConfig.COMPRESSION,
+            diagnose=True,
+            enqueue=True,
+
+        )
     colorprint.green("Init logger successfully.")
-    return l
+    return logger
 
 
-Logger = init_logger()
+Logger = init_logger(get_sys_env_var())

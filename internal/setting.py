@@ -25,6 +25,11 @@ def init_setting() -> BaseConfig:
         sys.exit(1)
 
     env_file_path = (Path().cwd() / "configs" / f".env.{cur_env_var}").as_posix()
+    # 检查env_file_path是否存在
+    if not Path(env_file_path).exists():
+        colorprint.red(f"Env file not found: {env_file_path}")
+        sys.exit(1)
+
     colorprint.green(f"Env file path: {env_file_path}.")
     s = config_class(_env_file=env_file_path, _env_file_encoding="utf-8")
     colorprint.green("Init setting successfully.")

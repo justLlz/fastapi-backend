@@ -103,7 +103,7 @@ def get_utc_datetime() -> datetime:
 
 
 def get_sys_env_var() -> str:
-    return str.lower(os.getenv("FAST_API_ENV", ""))
+    return str.lower(os.getenv("FAST_API_ENV", "local"))
 
 
 # 把"2024-10-21T12:26:04+08:00"转化成utcdatetime
@@ -256,7 +256,6 @@ def build_url(
     return urlunparse((scheme, netloc, path, "", query_string, fragment))
 
 
-
 class ColorPrint:
     colorama.init(autoreset=True)
 
@@ -275,5 +274,6 @@ class ColorPrint:
     @staticmethod
     def blue(text):
         print(colorama.Fore.BLUE + text)
+
 
 colorprint = ColorPrint()
