@@ -218,11 +218,11 @@ class UpdateBuilder(BaseBuilder):
         if not self.update_dict:
             return
 
-        if (deleted_at := self.update_dict.get("deleted_at", None)) is not None:
-            self.update_dict["updated_at"] = deleted_at
-
-        if self.update_dict.get("updated_at", None) is None:
-            self.update_dict["updated_at"] = get_utc_datetime()
+        # 时间字段处理（线程安全版）
+        current_time = get_utc_datetime()
+        if "deleted_at" in self.update_dict:
+            self.update_dict.setdefault("updated_at", self.update_dict["deleted_at"])
+        self.update_dict.setdefault("updated_at", current_time)
 
         self.stmt = self.stmt.values(**self.update_dict)
 

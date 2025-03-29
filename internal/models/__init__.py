@@ -37,9 +37,6 @@ class MixinModel(Base):
         instance._populate(kwargs)
         return instance
 
-    def update_fields(self, data: dict):
-        self._populate(data)
-
     def compare_diff_fields(self, data: dict) -> dict[str: [str]]:
         diff = {}
 

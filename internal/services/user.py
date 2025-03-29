@@ -1,13 +1,10 @@
-from fastapi import HTTPException, Request
+from fastapi import Request
 from fastapi.responses import ORJSONResponse
-from starlette.status import HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER_ERROR
+from starlette.status import HTTP_400_BAD_REQUEST
 
 import pkg
-from internal.infra.db import get_session
 from internal.models.user import User
 from internal.services import BaseService
-
-from pkg.logger import Logger
 from pkg.handle_resp import resp_failed, resp_success
 
 
