@@ -15,13 +15,13 @@ from pkg import datetime_to_string
 
 class CustomORJSONResponse(ORJSONResponse):
     def render(self, content: Any) -> bytes:
-        def convert_value(obj: Any) -> Any:
+        def custom_serializer(obj: Any) -> Any:
             """递归转换特殊数据类型"""
             match obj:
                 case dict():
-                    return {k: convert_value(v) for k, v in obj.items()}
+                    return {k: custom_serializer(v) for k, v in obj.items()}
                 case list() | tuple():
-                    return [convert_value(i) for i in obj]
+                    return [custom_serializer(i) for i in obj]
                 case datetime.datetime() as dt:
                     # 确保 datetime 转换为 ISO 8601 格式
                     return dt.isoformat() + "Z" if dt.tzinfo else dt.isoformat()
@@ -37,7 +37,7 @@ class CustomORJSONResponse(ORJSONResponse):
                     return obj
 
         try:
-            content = convert_value(content)
+            content = custom_serializer(content)
             return orjson.dumps(
                 content,
                 option=orjson.OPT_NON_STR_KEYS | orjson.OPT_SERIALIZE_NUMPY | orjson.OPT_PASSTHROUGH_DATETIME,
