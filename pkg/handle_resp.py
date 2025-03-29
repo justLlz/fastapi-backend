@@ -24,7 +24,7 @@ class CustomORJSONResponse(ORJSONResponse):
                     return [custom_serializer(i) for i in obj]
                 case datetime.datetime() as dt:
                     # 确保 datetime 转换为 ISO 8601 格式
-                    return dt.isoformat() + "Z" if dt.tzinfo else dt.isoformat()
+                    return datetime_to_string(obj)
                 case Decimal() as dec:
                     return str(dec)  # 避免浮点数精度丢失
                 case int() as i if abs(i) >= 2 ** 53:  # 避免 JavaScript 精度问题
