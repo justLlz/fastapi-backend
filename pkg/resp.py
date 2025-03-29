@@ -13,7 +13,6 @@ class CustomORJSONResponse(ORJSONResponse):
     SERIALIZER_OPTIONS = (
             orjson.OPT_SERIALIZE_NUMPY |
             orjson.OPT_SERIALIZE_UUID |
-            orjson.OPT_NON_STR_KEYS |
             orjson.OPT_NAIVE_UTC |
             orjson.OPT_UTC_Z |
             orjson.OPT_OMIT_MICROSECONDS
@@ -29,7 +28,6 @@ class CustomORJSONResponse(ORJSONResponse):
                 return [custom_serializer(i) for i in obj]
 
             if isinstance(obj, datetime.datetime):
-                # 确保 datetime 转换为 ISO 8601 格式
                 if obj.tzinfo is None:
                     obj = obj.replace(tzinfo=datetime.timezone.utc)
                 return obj.isoformat().replace("+00:00", "Z")
@@ -42,6 +40,9 @@ class CustomORJSONResponse(ORJSONResponse):
 
             if isinstance(obj, bytes):
                 return obj.decode("utf-8", "ignore")  # 转换为字符串
+
+            if isinstance(obj, datetime.timedelta):
+                return obj.total_seconds()
 
             return obj
 

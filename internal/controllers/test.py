@@ -86,6 +86,6 @@ async def test_custom_response_class_special_types(_: Request):
         "decimal": Decimal("123.4567890123456789"),
         "bytes": b"\x80abc\xff",
         "datetime_naive": datetime.now(),
-        "big_int": 2 ** 60
-        # "timedelta": timedelta(days=1, seconds=3600)
+        "big_int": 2 ** 60,
+        "timedelta": timedelta(days=1, seconds=3600)
     })
