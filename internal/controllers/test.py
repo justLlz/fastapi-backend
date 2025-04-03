@@ -5,7 +5,7 @@ from decimal import Decimal
 from fastapi import APIRouter, HTTPException, Request
 import numpy as np
 
-from pkg.resp import resp_200
+from pkg.resp import response_factory
 
 router = APIRouter(prefix="/test", tags=["test"])
 
@@ -19,7 +19,7 @@ async def test_raise_exception(_: Request):
 
 @router.get("/test_custom_response_class_basic_types")
 async def test_custom_response_class_basic_types(_: Request):
-    return resp_200(data={
+    return response_factory.resp_200(data={
         "large_int": 2 ** 53 + 1,  # 超过JS安全整数
         "normal_int": 42,
         "float_num": 3.1415926535,
@@ -30,7 +30,7 @@ async def test_custom_response_class_basic_types(_: Request):
 
 @router.get("/test_custom_response_class_containers")
 async def test_custom_response_class_containers(_: Request):
-    return resp_200(data=[
+    return response_factory.resp_200(data=[
         {"set_data": {1, 2, 3}},  # 集合转列表
         (4, 5, 6),  # 元组转列表
         [datetime(2023, 1, 1), datetime(2023, 1, 1, tzinfo=timezone.utc)]
@@ -39,7 +39,7 @@ async def test_custom_response_class_containers(_: Request):
 
 @router.get("/test_custom_response_class_nested")
 async def test_custom_response_class_nested(_: Request):
-    return resp_200(data={
+    return response_factory.resp_200(data={
         "level1": {
             "level2": [
                 {
@@ -56,7 +56,7 @@ async def test_custom_response_class_nested(_: Request):
 
 @router.get("/test_custom_response_class_third_party")
 async def test_custom_response_class_third_party(_: Request):
-    return resp_200(data={
+    return response_factory.resp_200(data={
         "numpy_array": np.array([1.1, 2.2, 3.3]),  # NumPy数组
         "numpy_int": np.int64(2 ** 63 - 1)
     })
@@ -64,7 +64,7 @@ async def test_custom_response_class_third_party(_: Request):
 
 @router.get("/test_custom_response_class_edge_cases")
 async def test_custom_response_class_edge_cases(_: Request):
-    return resp_200(data={
+    return response_factory.resp_200(data={
         "numpy_array": np.array([1.1, 2.2, 3.3]),  # NumPy数组
         "numpy_int": np.int64(2 ** 63)
     })
@@ -72,7 +72,7 @@ async def test_custom_response_class_edge_cases(_: Request):
 
 @router.get("/test_custom_response_class_edge_cases")
 async def test_custom_response_class_complex(_: Request):
-    return resp_200(data={
+    return response_factory.resp_200(data={
         "empty_dict": {},
         "empty_list": [],
         "zero": Decimal("0.000000"),
@@ -82,7 +82,7 @@ async def test_custom_response_class_complex(_: Request):
 
 @router.get("/test_custom_response_class_special_types")
 async def test_custom_response_class_special_types(_: Request):
-    return resp_200(data={
+    return response_factory.resp_200(data={
         "decimal": Decimal("123.4567890123456789"),
         "bytes": b"\x80abc\xff",
         "datetime_naive": datetime.now(),

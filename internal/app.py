@@ -7,6 +7,7 @@ from fastapi.exceptions import RequestValidationError, HTTPException
 
 from internal.setting import setting
 from pkg import colorprint, get_sys_env_var, resp
+from pkg.resp import response_factory
 
 
 def create_app() -> FastAPI:
@@ -41,22 +42,16 @@ def register_exception(app: FastAPI):
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(_: Request, exc: RequestValidationError):
         _record_log_error("Validation Error", repr(exc))
-        return handle_resp.resp_422(message=f"Validation Error: {exc}")
+        return response_factory.resp_422(message=f"Validation Error: {exc}")
 
     @app.exception_handler(HTTPException)
     async def http_exception_handler(_: Request, exc: HTTPException):
-        exec_detail, exec_status_code = exc.detail, exc.status_code
-        return handle_resp.custom_response(
-            status_code=exec_status_code,
-            code=str(exec_status_code),
-            message=exec_detail,
-            data=None
-        )
+        return response_factory.response(code=exc.status_code, msg=exc.detail)
 
-    @app.exception_handler(Exception)
-    async def all_exception_handler(_: Request, exc: Exception):
-        _record_log_error("Internal Server Error", repr(exc))
-        return handle_resp.resp_500(message=f"Internal Server Error: {exc}")
+    # @app.exception_handler(Exception)
+    # async def all_exception_handler(_: Request, exc: Exception):
+    #     _record_log_error("Internal Server Error", repr(exc))
+    #     return response_factory.resp_500(message=f"Internal Server Error: {exc}")
 
 
 def register_middleware(app: FastAPI):

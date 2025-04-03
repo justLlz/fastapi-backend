@@ -81,6 +81,8 @@ class ResponseFactory:
     Unauthorized: int = 40001
     NotFound: int = 40004
     Forbidden: int = 40003
+    PayloadTooLarge: int = 413
+    UnprocessableEntity: int = 422
 
     InternalServerError: int = 50000
 
@@ -103,6 +105,10 @@ class ResponseFactory:
             self.NotFound: self.resp_404,
             404: self.resp_404,
             self.Forbidden: self.resp_403,
+            413: self.resp_413,
+            self.PayloadTooLarge: self.resp_413,
+            422: self.resp_422,
+            self.UnprocessableEntity: self.resp_422,
 
             self.InternalServerError: self.resp_500,
             500: self.resp_500
@@ -147,6 +153,14 @@ class ResponseFactory:
     def resp_404(self, *, data: Any = None, message: str = "Not Found") -> ORJSONResponse:
         message = f"Not Found, {message}" if message else "Not Found"
         return self._base_response(code=self.NotFound, data=data, message=message)
+
+    def resp_413(self, *, data: Any = None, message: str = "") -> ORJSONResponse:
+        message = f"Payload Too Large, {message}" if message else "Payload Too Large"
+        return self._base_response(code=self.InternalServerError, data=data, message=message)
+
+    def resp_422(self, *, data: Any = None, message: str = "") -> ORJSONResponse:
+        message = f"Unprocessable Entity, {message}" if message else "Unprocessable Entity"
+        return self._base_response(code=self.InternalServerError, data=data, message=message)
 
     def resp_500(self, *, data: Any = None, message: str = "") -> ORJSONResponse:
         message = f"Internal Server Error, {message}" if message else "Internal Server Error"

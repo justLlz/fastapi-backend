@@ -3,7 +3,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from internal.core.session import verify_session
 from internal.core.signature import verify_signature
-from pkg.resp import resp_401
+from pkg.resp import response_factory
 
 not_auth_session_path = [
     "/auth/login",
@@ -25,7 +25,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             x_timestamp = request.headers.get("X-Timestamp", "")
             x_nonce = request.headers.get("X-Nonce", "")
             if not await verify_signature(x_signature, x_timestamp, x_nonce):
-                return resp_401(message="invalid signature or timestamp")
+                return response_factory.resp_401(message="invalid signature or timestamp")
             return await call_next(request)
 
         # 跳过无需认证的路径
@@ -36,7 +36,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         session = request.headers.get("Authorization")
         user_data, ok = await verify_session(session)
         if not ok:
-            return resp_401(message="invalid or missing session")
+            return response_factory.resp_401(message="invalid or missing session")
 
         request.state.user_data = user_data
         return await call_next(request)

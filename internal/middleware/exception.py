@@ -4,7 +4,7 @@ from fastapi import Request
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from pkg.resp import resp_500
+from pkg.resp import response_factory
 
 
 class ExceptionHandlingMiddleware(BaseHTTPMiddleware):
@@ -14,4 +14,4 @@ class ExceptionHandlingMiddleware(BaseHTTPMiddleware):
             return response
         except Exception as exc:
             logger.error(f"Unhandled Exception: {traceback.format_exc()}")
-            return resp_500(message=f"Unhandled Exception: {str(exc)}")
+            return response_factory.resp_500(message=f"Unhandled Exception: {str(exc)}")
