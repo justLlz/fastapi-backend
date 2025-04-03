@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 import numpy as np
 
 from internal.utils.asyncio_task import async_task_manager
+from internal.utils.context import get_trace_id_context_var
 from pkg.logger import Logger
 from pkg.resp import response_factory
 
@@ -96,7 +97,7 @@ async def test_custom_response_class_special_types(_: Request):
 
 async def async_task():
     """可以继承上下文的trace_id"""
-    Logger.info("async_task, trace_id-test")
+    Logger.info(f"async_task_trace_id-test")
     await asyncio.sleep(10)
 
 
