@@ -75,7 +75,7 @@ class ResponseFactory:
     _instance = None
 
     # 标准状态码
-    SUCCESS: int = 20000
+    Success: int = 20000
 
     BadRequest: int = 40000
     Unauthorized: int = 40001
@@ -95,20 +95,26 @@ class ResponseFactory:
     def _init_mapping(self):
         """初始化默认映射"""
         self._mapping = {
-            self.SUCCESS: self.resp_200,
+            self.Success: self.resp_200,
             200: self.resp_200,
 
             self.BadRequest: self.resp_401,
             401: self.resp_401,
+
             self.Unauthorized: self.resp_400,
             400: self.resp_400,
+
             self.NotFound: self.resp_404,
             404: self.resp_404,
+
             self.Forbidden: self.resp_403,
-            413: self.resp_413,
+            403: self.resp_403,
+
             self.PayloadTooLarge: self.resp_413,
-            422: self.resp_422,
+            413: self.resp_413,
+
             self.UnprocessableEntity: self.resp_422,
+            422: self.resp_422,
 
             self.InternalServerError: self.resp_500,
             500: self.resp_500
@@ -133,7 +139,7 @@ class ResponseFactory:
 
     # 预定义标准响应
     def resp_200(self, *, data: Any = None, message: str = "") -> ORJSONResponse:
-        return self._base_response(code=self.SUCCESS, data=data, message=message)
+        return self._base_response(code=self.Success, data=data, message=message)
 
     def resp_list(self, *, data: list, page: int, limit: int, total: int):
         return self.resp_200(data={"item": data, "page": page, "limit": limit, "total": total})
