@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import List, Union
+from urllib.parse import quote_plus
 
 from pydantic import IPvAnyAddress
 from pydantic.v1 import BaseSettings
@@ -35,7 +36,7 @@ class BaseConfig(BaseSettings):
 
     @property
     def sqlalchemy_database_uri(self) -> str:
-        return f"mysql+aiomysql://{self.MYSQL_USERNAME}:{self.MYSQL_PASSWORD}@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DATABASE}?charset=utf8mb4"
+        return f"mysql+aiomysql://{quote_plus(self.MYSQL_USERNAME)}:{quote_plus(self.MYSQL_PASSWORD)}@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DATABASE}?charset=utf8mb4"
 
     @property
     def sqlalchemy_echo(self) -> bool:
@@ -43,7 +44,11 @@ class BaseConfig(BaseSettings):
 
     @property
     def redis_url(self) -> str:
-        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+        if self.REDIS_PASSWORD == "":
+            return f"redis://{quote_plus(self.REDIS_HOST)}:{self.REDIS_PORT}/{self.REDIS_DB}"
+        else:
+            return f"redis://:{quote_plus(self.REDIS_PASSWORD)}@{quote_plus(self.REDIS_HOST)}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
 
 
 class LocalConfig(BaseConfig):
