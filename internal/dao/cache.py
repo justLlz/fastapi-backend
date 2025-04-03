@@ -288,3 +288,6 @@ class Cache:
                 await asyncio.sleep(retry_interval_ms / 1000)
 
         return None
+
+
+cache = Cache()
