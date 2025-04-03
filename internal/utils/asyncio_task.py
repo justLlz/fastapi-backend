@@ -6,10 +6,6 @@ from loguru import logger
 from internal.dao.cache import cache
 
 
-# from internal.config import settings
-# from internal.dao.cache import acquire_lock, release_lock
-
-
 class AsyncTaskManager:
     def __init__(self, max_tasks: int = 10):
         """初始化任务管理器，设置最大并发任务数"""
@@ -18,7 +14,7 @@ class AsyncTaskManager:
         self.lock = asyncio.Lock()
 
     @staticmethod
-    def get_coro_func_name(coro_func: Callable[..., Awaitable[Any]]) -> str:
+    def _get_coro_func_name(coro_func: Callable[..., Awaitable[Any]]) -> str:
         # 处理函数名
         if coro_func.__name__ == "<lambda>":
             raise ValueError("Lambda functions are not supported for task tracking!")
@@ -32,21 +28,22 @@ class AsyncTaskManager:
         return coro_func_name
 
     async def _run_task(self, task_id: str, coro_func: Callable[..., Awaitable[Any]], *args, **kwargs):
-        coro_func_name = self.get_coro_func_name(coro_func)
-        logger.info(f"Task {coro_func_name} {task_id} started.")
+        coro_func_name = self._get_coro_func_name(coro_func)
         try:
-            async with self.semaphore:  # 限制并发任务数
-                await coro_func(*args, **kwargs)  # 调用任务协程
+            async with self.semaphore:
+                logger.info(f"Task {coro_func_name} {task_id} started.")
+                await coro_func(*args, **kwargs)
+                logger.info(f"Task {coro_func_name} {task_id} finished.")
         except asyncio.CancelledError:
             logger.info(f"Task {coro_func_name} {task_id} cancelled.")
+        except Exception as e:
+            logger.error(f"Task {coro_func_name} {task_id} failed: {e}")
         finally:
-            logger.info(f"Task {coro_func_name} {task_id} finished.")
             async with self.lock:
                 del self.tasks[task_id]
 
     async def add_task(self, task_id: str, coro_func: Callable[..., Awaitable[Any]], *args, **kwargs):
-        coro_func_name = self.get_coro_func_name(coro_func)
-
+        coro_func_name = self._get_coro_func_name(coro_func)
         lock_key = f"{coro_func_name}:{task_id}"
         if not (lock_id := await cache.acquire_lock(lock_key)):
             logger.info(f"{coro_func_name}, task_id: {task_id}, acquire_lock fail")

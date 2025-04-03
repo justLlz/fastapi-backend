@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -5,6 +6,8 @@ from decimal import Decimal
 from fastapi import APIRouter, HTTPException, Request
 import numpy as np
 
+from internal.utils.asyncio_task import async_task_manager
+from pkg.logger import Logger
 from pkg.resp import response_factory
 
 router = APIRouter(prefix="/test", tags=["test"])
@@ -89,3 +92,15 @@ async def test_custom_response_class_special_types(_: Request):
         "big_int": 2 ** 60,
         "timedelta": timedelta(days=1, seconds=3600)
     })
+
+
+async def async_task():
+    """可以继承上下文的trace_id"""
+    Logger.info("async_task, trace_id-test")
+    await asyncio.sleep(10)
+
+
+@router.get("/test_contextvars_on_asyncio_task")
+async def test_contextvars_on_asyncio_task():
+    await  async_task_manager.add_task("test", async_task)
+    return response_factory.resp_200()
