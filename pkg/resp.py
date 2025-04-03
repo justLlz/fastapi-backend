@@ -1,12 +1,10 @@
 import datetime
 from decimal import Decimal
-from typing import Any, Union
+from functools import partial
+from typing import Any, Callable, Union
 
 from fastapi.responses import ORJSONResponse
 from orjson import orjson
-from starlette.status import (HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED, HTTP_403_FORBIDDEN,
-                              HTTP_404_NOT_FOUND, HTTP_413_REQUEST_ENTITY_TOO_LARGE, HTTP_422_UNPROCESSABLE_ENTITY,
-                              HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class CustomORJSONResponse(ORJSONResponse):
@@ -57,80 +55,119 @@ class CustomORJSONResponse(ORJSONResponse):
             raise ValueError(f"CustomORJSONResponse serializer fail: {e}") from e
 
 
-# 通用响应函数，用于避免重复代码
-def custom_response(
-        *,
-        status_code: int = HTTP_200_OK,
-        code: str = '',
-        message: Union[str, list, dict] = "success",
-        data: Union[list, dict, str, None] = None
-) -> CustomORJSONResponse:
-    """通用响应生成器，减少重复"""
-    return CustomORJSONResponse(
-        status_code=status_code,
-        content={
-            'code': code,
-            'message': message,
-            'data': data,
+class ResponseFactory:
+    """
+    # 使用示例
+    factory = ResponseFactory()
+
+    # 1. 使用预定义响应
+    success_resp = factory.get(ResponseFactory.SUCCESS)(data={"id": 1})
+
+    # 2. 注册自定义响应
+    @factory.register(code=40003, default_message="Forbidden")
+    def forbidden(*, code: int, message: str):
+        return ResponseFactory._base_response(code=code, message=message)
+
+    # 3. 使用自定义响应
+    forbidden_resp = factory.get(40003)(message="No permission")
+    """
+
+    _instance = None
+
+    # 标准状态码
+    SUCCESS: int = 20000
+
+    BadRequest: int = 40000
+    Unauthorized: int = 40001
+    NotFound: int = 40004
+    Forbidden: int = 40003
+
+    InternalServerError: int = 50000
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._init_mapping()
+        return cls._instance
+
+    def _init_mapping(self):
+        """初始化默认映射"""
+        self._mapping = {
+            self.SUCCESS: self.resp_200,
+            200: self.resp_200,
+
+            self.BadRequest: self.resp_401,
+            401: self.resp_401,
+            self.Unauthorized: self.resp_400,
+            400: self.resp_400,
+            self.NotFound: self.resp_404,
+            404: self.resp_404,
+            self.Forbidden: self.resp_403,
+
+            self.InternalServerError: self.resp_500,
+            500: self.resp_500
         }
-    )
+
+    @staticmethod
+    def _base_response(
+            *,
+            code: int = 200,
+            data: Any = None,
+            message: Union[list, dict, str] = ""
+    ) -> ORJSONResponse:
+        """基础响应构造器"""
+        return CustomORJSONResponse(
+            status_code=200,
+            content={
+                "code": code,
+                "message": message,
+                "data": data,
+            }
+        )
+
+    # 预定义标准响应
+    def resp_200(self, *, data: Any = None, message: str = "") -> ORJSONResponse:
+        return self._base_response(code=self.SUCCESS, data=data, message=message)
+
+    def resp_list(self, *, data: list, page: int, limit: int, total: int):
+        return self.resp_200(data={"item": data, "page": page, "limit": limit, "total": total})
+
+    def resp_400(self, *, data: Any = None, message: str = "") -> ORJSONResponse:
+        message = f"Bad Request, {message}" if message else "Bad Request"
+        return self._base_response(code=self.BadRequest, data=data, message=message)
+
+    def resp_401(self, *, data: Any = None, message: str = "") -> ORJSONResponse:
+        message = f"Unauthorized, {message}" if message else "Unauthorized"
+        return self._base_response(code=self.Unauthorized, data=data, message=message)
+
+    def resp_403(self, *, data: Any = None, message: str = "Forbidden") -> ORJSONResponse:
+        message = f"Forbidden, {message}" if message else "Forbidden"
+        return self._base_response(code=self.Forbidden, data=data, message=message)
+
+    def resp_404(self, *, data: Any = None, message: str = "Not Found") -> ORJSONResponse:
+        message = f"Not Found, {message}" if message else "Not Found"
+        return self._base_response(code=self.NotFound, data=data, message=message)
+
+    def resp_500(self, *, data: Any = None, message: str = "") -> ORJSONResponse:
+        message = f"Internal Server Error, {message}" if message else "Internal Server Error"
+        return self._base_response(code=self.InternalServerError, data=data, message=message)
+
+    def response(self, *, code: int, data: Any = None, message: str = "") -> Callable:
+        """获取响应构造器"""
+        if code not in self._mapping:
+            raise ValueError(f"Unregistered response code: {code}")
+        response_func = self._mapping[code]
+        return response_func(data=data, message=message)
+
+    def register(self, code: int, *, default_message: str = ""):
+        """注册新的响应类型（装饰器）"""
+
+        def decorator(f):
+            self._mapping[code] = partial(f, code=code, message=default_message)
+            return f
+
+        return decorator
 
 
-def resp_failed(code: int, message: str) -> CustomORJSONResponse:
-    return custom_response(
-        status_code=200,
-        code=str(code),
-        message=message,
-        data=None
-    )
-
-
-def resp_success(*, data: Union[list, dict, str] = None):
-    return custom_response(
-        status_code=200,
-        code='200',
-        message='success',
-        data=data
-    )
-
-
-# 各种状态码的响应函数
-def resp_200(*, data: Union[list, dict, str] = None):
-    return resp_success(data=data)
-
-
-def resp_400(*, message: str = "BAD REQUEST"):
-    return resp_failed(HTTP_400_BAD_REQUEST, message=message)
-
-
-def resp_401(*, message: str = "UNAUTHORIZED"):
-    return resp_failed(code=HTTP_401_UNAUTHORIZED, message=message)
-
-
-def resp_403(*, message: str = "Forbidden"):
-    return resp_failed(HTTP_403_FORBIDDEN, message=message)
-
-
-def resp_404(*, message: str = "Not Found"):
-    return resp_failed(code=HTTP_404_NOT_FOUND, message=message)
-
-
-def resp_422(*, message: Union[list, dict, str] = "UNPROCESSABLE_ENTITY"):
-    return resp_failed(code=HTTP_422_UNPROCESSABLE_ENTITY, message=message)
-
-
-def resp_413(*, message: Union[list, dict, str] = "Payload Too Large"):
-    return resp_failed(code=HTTP_413_REQUEST_ENTITY_TOO_LARGE, message=message)
-
-
-def resp_500(*, message: Union[list, dict, str] = "Server Internal Error"):
-    return resp_failed(HTTP_500_INTERNAL_SERVER_ERROR, message=message)
-
-
-# 自定义错误码的响应
-def resp_5000(*, message: str = "Token failure"):
-    return resp_failed(code=5000, message=message)
-
-
-def resp_5001(*, message: str = "User Not Found"):
-    return resp_failed(code=5001, message=message)
+# 使用示例
+response_factory = ResponseFactory()
