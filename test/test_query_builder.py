@@ -109,4 +109,4 @@ class TestQueryBuilder:
 
 if __name__ == '__main__':
     # 执行测试用例
-    pytest.main()
+    pytest.main(["-v", "--asyncio-mode=auto"])
