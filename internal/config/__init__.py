@@ -30,6 +30,8 @@ class BaseConfig(BaseSettings):
     REDIS_DB: int
     REDIS_PORT: int
 
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
     class Config:
         case_sensitive = True
         env_file_encoding = "utf-8"
@@ -48,7 +50,6 @@ class BaseConfig(BaseSettings):
             return f"redis://{quote_plus(self.REDIS_HOST)}:{self.REDIS_PORT}/{self.REDIS_DB}"
         else:
             return f"redis://:{quote_plus(self.REDIS_PASSWORD)}@{quote_plus(self.REDIS_HOST)}:{self.REDIS_PORT}/{self.REDIS_DB}"
-
 
 
 class LocalConfig(BaseConfig):

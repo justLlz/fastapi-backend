@@ -1,18 +1,17 @@
 """
 该目录主要用于数据库操作
 """
-from decimal import Decimal
-from typing import Optional, Type, Union
+from typing import Any, Optional, Tuple, Type, Union
 
 from fastapi import HTTPException
-from sqlalchemy import Column, ColumnElement, Select, asc, desc, func, or_, select, update
+from sqlalchemy import ColumnElement, ColumnExpressionArgument, Select, asc, desc, func, or_, select, update
 from sqlalchemy.orm import InstrumentedAttribute
-from starlette.status import HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
+from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
 from internal.infra.db import get_session
 from internal.models import MixinModel
-from internal.utils.mixin_type import MixinModelType, MixinValType, normalize_column
-from pkg import get_utc_datetime, unique_iterable
+from internal.utils.mixin_type import MixinModelType
+from pkg import get_utc_datetime
 from pkg.logger import Logger
 
 
@@ -26,49 +25,105 @@ class BaseBuilder:
         self.model = base_model
         self.stmt: Select = Select()
 
-    def add_conditions(
-            self,
-            conditions: list[tuple[InstrumentedAttribute | Column, MixinValType]],
-            logical_operator: str = "and"
-    ) -> 'BaseBuilder':
+    # 单独的操作符方法
+    def eq(self, column_name: str, value: Any) -> "BaseBuilder":
+        """等于条件"""
+        return self.where_by(**{column_name: {"eq": value}})
+
+    def ne(self, column_name: str, value: Any) -> "BaseBuilder":
+        """不等于条件"""
+        return self.where_by(**{column_name: {"ne": value}})
+
+    def gt(self, column_name: str, value: Any) -> "BaseBuilder":
+        """大于条件"""
+        return self.where_by(**{column_name: {"gt": value}})
+
+    def lt(self, column_name: str, value: Any) -> "BaseBuilder":
+        """小于条件"""
+        return self.where_by(**{column_name: {"lt": value}})
+
+    def ge(self, column_name: str, value: Any) -> "BaseBuilder":
+        """大于等于条件"""
+        return self.where_by(**{column_name: {"ge": value}})
+
+    def le(self, column_name: str, value: Any) -> "BaseBuilder":
+        """小于等于条件"""
+        return self.where_by(**{column_name: {"le": value}})
+
+    def in_(self, column_name: str, values: list) -> "BaseBuilder":
+        """包含于列表条件"""
+        return self.where_by(**{column_name: {"in": values}})
+
+    def like(self, column_name: str, pattern: str) -> "BaseBuilder":
+        """模糊匹配条件"""
+        return self.where_by(**{column_name: {"like": pattern}})
+
+    def is_null(self, column_name: str) -> "BaseBuilder":
+        """为空检查条件"""
+        return self.where_by(**{column_name: {"is_null": True}})
+
+    def between(self, column_name: str, range_values: Tuple[Any, Any]) -> "BaseBuilder":
+        """范围查询条件"""
+        return self.where_by(**{column_name: {"between": range_values}})
+
+    def or_(self, *conditions) -> 'BaseBuilder':
         """
-        Add conditions (AND/OR) to the query.
-
-        :param conditions: A list of tuples where each tuple is (column, value).
-        :param logical_operator: "and" for AND conditions, "or" for OR conditions.
-        :return: The current instance of BaseBuilder.
+        # 查询 id 为 1 或者 name 为 "Alice" 的记录
+        stmt = select(users_table).where(
+            or_(users_table.c.name == "wendy", users_table.c.name == "jack")
+        )
         """
-        parsed_conditions: list[ColumnElement[bool]] = []
-
-        for cond in conditions:
-            col, value = cond
-            col = normalize_column(col)
-            match value:
-                case list() | set() | tuple() | frozenset():
-                    value = unique_iterable(value)
-                    parsed_conditions.append(col.in_(value))
-                case str() | int() | float() | bool() | Decimal():
-                    parsed_conditions.append(col == value)
-                case None:
-                    parsed_conditions.append(col.is_(None))
-                case _:
-                    raise ValueError(
-                        f"Unsupported type for 'value': {type(value).__name__}. "
-                        f"Expected list, set, tuple, str, int, float, bool, Decimal, or None."
-                    )
-
-        if parsed_conditions:
-            if logical_operator == "or":
-                self.stmt = self.stmt.where(or_(*parsed_conditions))
-            elif logical_operator == "and":
-                for condition in parsed_conditions:
-                    self.stmt = self.stmt.where(condition)
-            else:
-                raise ValueError(f"Unsupported logical operator: {logical_operator}")
-
+        self.stmt = self.where(or_(*conditions))
         return self
 
-    def where_v1(self, *conditions) -> "BaseBuilder":
+    def distinct(self) -> 'BaseBuilder':
+        self.stmt = self.stmt.distinct()
+        return self
+
+    def _get_column(self, column_name: str) -> InstrumentedAttribute:
+        column = getattr(self.model, column_name, None)
+        if column is None:
+            raise HTTPException(
+                HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Column '{column_name}' not found in model {self.model.__name__}",
+            )
+        return column
+
+    @staticmethod
+    def _parse_operator(column: InstrumentedAttribute, operator: str, value: Any) -> ColumnElement:
+        """解析操作符并生成条件"""
+        if operator == "eq":
+            return column == value
+        elif operator == "ne":
+            return column != value
+        elif operator == "gt":
+            return column > value
+        elif operator == "lt":
+            return column < value
+        elif operator == "ge":
+            return column >= value
+        elif operator == "le":
+            return column <= value
+        elif operator == "in":
+            return column.in_(value)
+        elif operator == "like":
+            return column.like(value)
+        elif operator == "is_null":
+            return column.is_(None)
+        elif operator == "between":
+            if not isinstance(value, (list, tuple)) or len(value) != 2:
+                raise HTTPException(
+                    400,
+                    detail="Operator 'between' requires a list/tuple with two values",
+                )
+            return column.between(value[0], value[1])
+        else:
+            raise HTTPException(
+                400,
+                detail=f"Unsupported operator: {operator}",
+            )
+
+    def where(self, *conditions: ColumnExpressionArgument[bool]) -> "BaseBuilder":
         """
         example:
         builder = QueryBuilder(MyModel)
@@ -82,36 +137,30 @@ class BaseBuilder:
         self.stmt = self.stmt.where(*conditions)
         return self
 
-    def where_v2(self, col: InstrumentedAttribute | Column, value: MixinValType) -> 'BaseBuilder':
+    def where_by(self, **kwargs) -> "BaseBuilder":
         """
-        Add a single AND condition to the query.
-
-        :param col: The column for the condition.
-        :param value: The value for the condition.
-        :return: The current instance of BaseBuilder.
-
-        example:
-        builder = QueryBuilder(MyModel)
-        builder.where_v2(MyModel.id, 1)
-        stmt = builder.stmt  # SELECT * FROM my_model WHERE id = 1
+        支持 kwargs 的 key 与数据库字段名一致，value 是操作符字典
+        示例:
+        where(age={"gt": 30}, status={"in": [1, 2]})
+        查询 age > 30, age < 40, deleted_at=null
+        where(age={"gt": 30, "lt": 40}， deleted_at={"is_null": True})
         """
-        return self.add_conditions([(col, value)], logical_operator="and")
+        conditions = []
+        for column_name, value in kwargs.items():
+            # 获取 SQLAlchemy 列对象
+            column = self._get_column(column_name)
+            # 如果值是字典（支持多个操作符）
+            if isinstance(value, dict):
+                for operator, val in value.items():
+                    condition = self._parse_operator(column, operator, val)
+                    conditions.append(condition)
+            # 默认等值查询（例如 age=30）
+            else:
+                conditions.append(column == value)
 
-    def where_v3(self, *conditions: tuple[InstrumentedAttribute | Column, MixinValType]) -> "BaseBuilder":
-        """
-        Add multiple AND conditions to the query.
-        :param conditions: A list of tuples where each tuple is (column, value).
-        :return: The current instance of BaseBuilder.
-        example:
-        # 查询 id 为 1 且 name 为 "Alice" 的记录
-        builder = QueryBuilder(MyModel)
-        builder.where_v3((MyModel.id, 1), (MyModel.name, "Alice"))
-        stmt = builder.stmt  # SELECT * FROM my_model WHERE id = 1 AND name = 'Alice'
-        """
-        return self.add_conditions(list(conditions), logical_operator="and")
-
-    def or_cond(self, *conditions) -> 'BaseBuilder':
-        self.stmt = self.stmt.where(or_(*conditions))
+        # 将所有条件用 AND 连接
+        if conditions:
+            self.stmt = self.stmt.where(*conditions)
         return self
 
 
@@ -120,24 +169,14 @@ class QueryBuilder(BaseBuilder):
         super().__init__(model)
         self.stmt: Select = select(self.model).where(model.deleted_at.is_(None))
 
-    def order_by(self, col: Optional[InstrumentedAttribute | Column], sort: str = Sort.DESC) -> 'QueryBuilder':
-        col = normalize_column(col)
-        self.stmt = self.stmt.order_by(asc(col) if sort == Sort.ASC else desc(col))
-        return self
-
-    def paginate(self, page: Optional[int] = None, limit: Optional[int] = None) -> 'QueryBuilder':
-        if page and limit:
-            self.stmt = self.stmt.offset((page - 1) * limit).limit(limit)
-        return self
-
     async def scalars_all(self) -> list['MixinModelType']:
         async with get_session() as sess:
             try:
                 result = await sess.execute(self.stmt)
                 data = result.scalars().all()
             except Exception as e:
-                Logger.error(f"{self.model.__name__}: {repr(e)}")
-                raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+                Logger.error(f"{self.model.__name__} scalars_all: {repr(e)}")
+                raise HTTPException(status_code=500, detail=str(e)) from e
         return [i for i in data]
 
     async def scalar_one_or_none(self) -> Optional[MixinModelType]:
@@ -146,8 +185,8 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalar_one_or_none()
             except Exception as e:
-                Logger.error(f"{self.model.__name__}: {repr(e)}")
-                raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+                Logger.error(f"{self.model.__name__} scalar_one_or_none: {repr(e)}")
+                raise HTTPException(status_code=500, detail=str(e)) from e
         return data
 
     async def scalars_first(self) -> Optional[MixinModelType]:
@@ -156,26 +195,32 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalars().first()
             except Exception as e:
-                Logger.error(f"{self.model.__name__}: {repr(e)}")
-                raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+                Logger.error(f"{self.model.__name__} scalars_first: {repr(e)}")
+                raise HTTPException(status_code=500, detail=str(e)) from e
         return data
 
     async def get_or_exec(self) -> Optional[MixinModelType]:
         data = await self.get_or_none()
         if not data:
-            raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="not found")
+            raise HTTPException(status_code=404, detail="not found")
         return data
 
     async def get_or_none(self) -> Optional[MixinModelType]:
         data = await self.scalar_one_or_none()
         return data
 
+    def order_by(self, col: InstrumentedAttribute, sort: str = Sort.DESC) -> 'QueryBuilder':
+        self.stmt = self.stmt.order_by(asc(col) if sort == Sort.ASC else desc(col))
+        return self
+
+    def paginate(self, page: Optional[int] = None, limit: Optional[int] = None) -> 'QueryBuilder':
+        if page and limit:
+            self.stmt = self.stmt.offset((page - 1) * limit).limit(limit)
+        return self
+
 
 class CountBuilder(BaseBuilder):
-    def __init__(self, base_model: Type[MixinModel], col: InstrumentedAttribute | Column = None):
-        if col is not None and not isinstance(col, (InstrumentedAttribute, Column)):
-            raise ValueError(f"Unsupported type for 'col': {type(col).__name__}. Expected InstrumentedAttribute.")
-
+    def __init__(self, base_model: Type[MixinModel], col: InstrumentedAttribute = None):
         super().__init__(base_model)
         col = self.model.id if col is None else col
         self.stmt = select(func.count(col)).where(base_model.deleted_at.is_(None))
@@ -232,14 +277,4 @@ class UpdateBuilder(BaseBuilder):
                 await sess.commit()
             except Exception as e:
                 Logger.error(f"{self.model.__name__}: {repr(e)}")
-                raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
-
-    @classmethod
-    async def save(cls, ins: MixinModel):
-        async with get_session() as sess:
-            try:
-                sess.add(ins)
-                await sess.commit()
-            except Exception as e:
-                Logger.error(f"{cls.__name__}: {repr(e)}")
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e

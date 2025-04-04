@@ -1,11 +1,10 @@
 from fastapi import Request
 from fastapi.responses import ORJSONResponse
-from starlette.status import HTTP_400_BAD_REQUEST
 
 import pkg
 from internal.models.user import User
 from internal.services import BaseService
-from pkg.resp import resp_failed, resp_success
+from pkg.resp import response_factory
 
 
 class UserService(BaseService):
@@ -13,11 +12,11 @@ class UserService(BaseService):
     async def create_by_phone(self, _: Request, phone: str) -> ORJSONResponse:
         user = await self.querier(User).where_v1(User.phone, phone).get_or_none()
         if user:
-            return resp_failed(HTTP_400_BAD_REQUEST, message="phone already exists")
+            return response_factory.resp_400(message="phone already exists")
 
         user = User.init_by_phone(phone)
         await user.save()
-        return resp_success()
+        return response_factory.resp_200()
 
     async def get_user_by_id(self, _: Request, user_id: int) -> User:
         user = await self.querier(User).where_v1(User.id, user_id).get_or_exec()

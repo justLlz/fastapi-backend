@@ -6,7 +6,7 @@ from fastapi.responses import ORJSONResponse
 from internal.core.bcrypt import verify_password
 from internal.models.user import ManageUser, User
 from internal.services import BaseService
-from pkg.resp import resp_401
+from pkg.resp import response_factory
 
 
 class AuthService(BaseService):
@@ -21,7 +21,7 @@ class AuthService(BaseService):
         """
         user: ManageUser = await (self.querier(ManageUser).where_(ManageUser.account, account).get_or_exec())
         if not verify_password(password, user.password):
-            return "", resp_401(message="wrong account or password")
+            return "", response_factory.resp_401(message="wrong account or password")
 
         session = await self.cache.login_and_set_session(user.to_dict())
         return session, None

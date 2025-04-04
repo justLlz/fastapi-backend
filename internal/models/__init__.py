@@ -17,9 +17,9 @@ class MixinModel(Base):
     __abstract__ = True
 
     id = Column(BigInteger, primary_key=True)
-    deleted_at = Column(DateTime(False), nullable=True, default=None)
-    updated_at = Column(DateTime(False))
     created_at = Column(DateTime(False))
+    updated_at = Column(DateTime(False))
+    deleted_at = Column(DateTime(False), nullable=True, default=None)
 
     async def save(self):
         try:
