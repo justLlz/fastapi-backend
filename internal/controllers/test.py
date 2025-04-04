@@ -159,14 +159,6 @@ async def test_dao():
         null_users = await QueryBuilder(User).is_null("deleted_at").scalars_all()
         assert any(u.deleted_at is None for u in null_users)
 
-        # 3. 更新操作测试
-        # 显式使用新查询器避免缓存问题
-        await UpdateBuilder(User).eq("id", test_user.id).update(username="updated_name").execute()
-
-        # 重新查询验证更新
-        updated_user = await QueryBuilder(User).eq("id", test_user.id).get_or_exec()
-        assert updated_user.username == "updated_name"
-
         # 4. 计数测试
         count = await CountBuilder(User).ge("id", 0).count()
         assert count >= 1
@@ -174,8 +166,22 @@ async def test_dao():
         # AND 组合
         and_users = await (QueryBuilder(User).
                            eq("username", test_user.username).
-                           eq("account", test_user.account).scalars_all())
-        assert len(and_users) == 1
+                           eq("account", test_user.account).get_or_exec())
+        assert and_users.username == test_user.username, and_users.account == test_user.account
+
+        # where 组合
+        where_user = await QueryBuilder(User).where(
+            User.username == test_user.username,
+            User.account == test_user.account
+        ).get_or_exec()
+        assert where_user.username == test_user.username, where_user.account == test_user.account
+
+        # where_by 组合
+        where_by_query_dict = {"username": test_user.username, "account": test_user.account}
+        where_by_users = await QueryBuilder(User).where_by(
+            **where_by_query_dict
+        ).get_or_exec()
+        assert where_by_users.username == test_user.username, where_by_users.account == test_user.account
 
         # OR 组合
         or_users = await QueryBuilder(User).or_(
@@ -190,6 +196,21 @@ async def test_dao():
             (test_user.id - 1, test_user.id + 1)
         ).scalars_all()
         assert len(between_users) >= 1
+
+        # 3. 更新操作测试
+        # 显式使用新查询器避免缓存问题
+        updated_name = f"updated_name_{unique_hex}"
+        await UpdateBuilder(User).eq("id", test_user.id).update(username=updated_name).execute()
+        # 重新查询验证更新
+        updated_user = await QueryBuilder(User).eq("id", test_user.id).get_or_exec()
+        assert updated_user.username == updated_name
+
+        # 显式使用新查询器避免缓存问题
+        updated_name = f"updated_name_{unique_hex}"
+        await UpdateBuilder(User).eq("id", test_user.id).update_by({"username": updated_name}).execute()
+        # 重新查询验证更新
+        updated_user = await QueryBuilder(User).eq("id", test_user.id).get_or_exec()
+        assert updated_user.username == updated_name
     except Exception as e:
         Logger.error(f"test_dao error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -197,4 +218,4 @@ async def test_dao():
         test_user.deleted_at = datetime.now()
         await test_user.save()
 
-    return response_factory.resp_200()
+    return response_factory.resp_200(data="test dao success")

@@ -68,12 +68,19 @@ class BaseBuilder:
 
     def or_(self, *conditions) -> 'BaseBuilder':
         """
-        # 查询 id 为 1 或者 name 为 "Alice" 的记录
-        stmt = select(users_table).where(
-            or_(users_table.c.name == "wendy", users_table.c.name == "jack")
+        添加 OR 条件组合
+        示例:
+        builder.or_(
+            User.name == "Alice",
+            User.age > 30
         )
+        或:
+        conditions = [User.name == "Alice", User.age > 30]
+        builder.or_(*conditions)
         """
-        self.stmt = self.where(or_(*conditions))
+        if not conditions:
+            return self
+        self.stmt = self.stmt.where(or_(*conditions))
         return self
 
     def distinct(self) -> 'BaseBuilder':
@@ -260,7 +267,7 @@ class UpdateBuilder(BaseBuilder):
         return self
 
     def update_by(self, kwargs: dict):
-        self.update(**kwargs)
+        return self.update(**kwargs)
 
     async def execute(self):
         if not self.update_dict:
