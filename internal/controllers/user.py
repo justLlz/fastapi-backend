@@ -12,8 +12,9 @@ async def hello_world(request: Request):
     return response_factory.resp_200()
 
 
-@router.get("/get_user_list")
+@router.get("/test_querier")
 async def get_user_list(request: Request,
                         page: Annotated[int, Query(ge=1, le=1000)] = 1,
                         limit: Annotated[int, Query(ge=1, le=1000)] = 10):
-    return response_factory.resp_list(data=[], page=page, limit=limit, total=0)
+    data = await user_srv.querier_test(request, page, limit)
+    return response_factory.resp_list(data=[i.to_dict() for i in data], page=page, limit=limit, total=100)

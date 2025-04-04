@@ -103,7 +103,7 @@ def get_utc_datetime() -> datetime:
 
 
 def get_sys_env_var() -> str:
-    return str.lower(os.getenv("FAST_API_ENV", "local"))
+    return str.lower(os.getenv("ENV", "dev"))
 
 
 # 把"2024-10-21T12:26:04+08:00"转化成utcdatetime

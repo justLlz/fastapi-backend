@@ -24,7 +24,7 @@ def init_setting() -> BaseConfig:
         colorprint.red(f"Invalid FAST_API_ENV value: {cur_env_var}")
         sys.exit(1)
 
-    env_file_path = (Path().cwd() / "configs" / f".env.{cur_env_var}").as_posix()
+    env_file_path = (Path(__file__).parent.parent / "configs" / f".env.{cur_env_var}").as_posix()
     # 检查env_file_path是否存在
     if not Path(env_file_path).exists():
         colorprint.red(f"Env file not found: {env_file_path}")

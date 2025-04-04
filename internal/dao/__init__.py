@@ -248,7 +248,7 @@ class UpdateBuilder(BaseBuilder):
 
         self.update_dict = {}
 
-    def update(self, kwargs: dict) -> 'UpdateBuilder':
+    def update(self, **kwargs) -> 'UpdateBuilder':
         if not kwargs:
             return self
 
@@ -258,6 +258,9 @@ class UpdateBuilder(BaseBuilder):
                 self.update_dict[col] = value
 
         return self
+
+    def update_by(self, kwargs: dict):
+        self.update(**kwargs)
 
     async def execute(self):
         if not self.update_dict:
