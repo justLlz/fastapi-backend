@@ -1,13 +1,15 @@
 import asyncio
+import random
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
-from fastapi import APIRouter, HTTPException, Request
 import numpy as np
+from fastapi import APIRouter, HTTPException, Request
 
+from internal.dao import CountBuilder, QueryBuilder, UpdateBuilder
+from internal.models.user import User
 from internal.utils.asyncio_task import async_task_manager
-from internal.utils.context import get_trace_id_context_var
 from pkg.logger import Logger
 from pkg.resp import response_factory
 
@@ -104,4 +106,95 @@ async def async_task():
 @router.get("/test_contextvars_on_asyncio_task")
 async def test_contextvars_on_asyncio_task():
     await  async_task_manager.add_task("test", async_task)
+    return response_factory.resp_200()
+
+
+@router.get("/test_dao")
+async def test_dao():
+    unique_hex = uuid.uuid4().hex[:16]  # 缩短长度
+    test_user = User.init_by_phone(str(random.randint(10000000000, 99999999999)))
+    test_user.account = f"lilinze_{unique_hex}"
+    test_user.username = f"lilinze_{unique_hex}"
+    await test_user.save()
+
+    try:
+        # 1. 验证基础查询
+        created_user = await QueryBuilder(User).eq("id", test_user.id).get_or_exec()
+        assert created_user.id == test_user.id
+
+        # 2. 测试各种查询操作符
+        # eq
+        user = await QueryBuilder(User).eq("id", test_user.id).get_or_none()
+        assert user.id == test_user.id
+
+        # ne
+        ne_users = await QueryBuilder(User).ne("id", test_user.id).scalars_all()
+        assert all(u.id != test_user.id for u in ne_users)
+
+        # gt
+        gt_users = await QueryBuilder(User).gt("id", test_user.id).scalars_all()
+        assert all(u.id > test_user.id for u in gt_users)
+
+        # lt
+        lt_users = await QueryBuilder(User).lt("id", test_user.id).scalars_all()
+        assert all(u.id < test_user.id for u in lt_users)
+
+        # ge
+        ge_users = await QueryBuilder(User).ge("id", test_user.id).scalars_all()
+        assert all(u.id >= test_user.id for u in ge_users)
+
+        # le
+        le_users = await QueryBuilder(User).le("id", test_user.id).scalars_all()
+        assert all(u.id <= test_user.id for u in le_users)
+
+        # in_ 测试
+        in_users = await QueryBuilder(User).in_("id", [test_user.id]).scalars_all()
+        assert len(in_users) == 1
+
+        # like 测试
+        like_users = await QueryBuilder(User).like("username", "%lilinze%").scalars_all()
+        assert all("lilinze" in u.username for u in like_users)
+
+        # is_null 测试（确保测试时deleted_at为null）
+        null_users = await QueryBuilder(User).is_null("deleted_at").scalars_all()
+        assert any(u.deleted_at is None for u in null_users)
+
+        # 3. 更新操作测试
+        # 显式使用新查询器避免缓存问题
+        await UpdateBuilder(User).eq("id", test_user.id).update(username="updated_name").execute()
+
+        # 重新查询验证更新
+        updated_user = await QueryBuilder(User).eq("id", test_user.id).get_or_exec()
+        assert updated_user.username == "updated_name"
+
+        # 4. 计数测试
+        count = await CountBuilder(User).ge("id", 0).count()
+        assert count >= 1
+
+        # AND 组合
+        and_users = await (QueryBuilder(User).
+                           eq("username", test_user.username).
+                           eq("account", test_user.account).scalars_all())
+        assert len(and_users) == 1
+
+        # OR 组合
+        or_users = await QueryBuilder(User).or_(
+            User.username == test_user.username,
+            User.account == "invalid_account"
+        ).scalars_all()
+        assert len(or_users) >= 1
+
+        # BETWEEN 组合
+        between_users = await QueryBuilder(User).between(
+            "id",
+            (test_user.id - 1, test_user.id + 1)
+        ).scalars_all()
+        assert len(between_users) >= 1
+    except Exception as e:
+        Logger.error(f"test_dao error: {e}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    finally:
+        test_user.deleted_at = datetime.now()
+        await test_user.save()
+
     return response_factory.resp_200()

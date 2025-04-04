@@ -46,12 +46,7 @@ def register_exception(app: FastAPI):
 
     @app.exception_handler(HTTPException)
     async def http_exception_handler(_: Request, exc: HTTPException):
-        return response_factory.response(code=exc.status_code, msg=exc.detail)
-
-    # @app.exception_handler(Exception)
-    # async def all_exception_handler(_: Request, exc: Exception):
-    #     _record_log_error("Internal Server Error", repr(exc))
-    #     return response_factory.resp_500(message=f"Internal Server Error: {exc}")
+        return response_factory.response(code=exc.status_code, message=exc.detail)
 
 
 def register_middleware(app: FastAPI):
@@ -93,8 +88,8 @@ async def lifespan(_app: FastAPI):
     colorprint.green("Init lifespan...")
     # 检查环境变量
     env_var = get_sys_env_var()
-    if env_var not in ["dev", "test", "prod", "local"]:
-        colorprint.red(f"Invalid FAST_API_ENV value: {env_var}")
+    if env_var not in ["local", "dev", "test", "prod"]:
+        colorprint.red(f"Invalid ENV: {env_var}")
         sys.exit(1)
 
     colorprint.green("Check completed, Application will start.")

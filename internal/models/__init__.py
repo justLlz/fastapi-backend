@@ -9,7 +9,7 @@ from starlette import status
 from internal.infra.db import Base, get_session
 from pkg import datetime_to_string, get_utc_datetime
 from pkg.logger import Logger
-from pkg.snow_flake import snowflake_generator
+from pkg.snow_flake import generate_snowflake_id
 
 
 class MixinModel(Base):
@@ -33,7 +33,7 @@ class MixinModel(Base):
     @classmethod
     def create(cls, **kwargs) -> 'MixinModel':
         cur_datetime = get_utc_datetime()
-        instance = cls(id=snowflake_generator.generate_id(), created_at=cur_datetime, updated_at=cur_datetime)
+        instance = cls(id=generate_snowflake_id(), created_at=cur_datetime, updated_at=cur_datetime)
         instance._populate(kwargs)
         return instance
 
