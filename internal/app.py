@@ -23,15 +23,11 @@ def create_app() -> FastAPI:
     register_exception(app)
     register_middleware(app)
 
-    # 清除uvicorn相关日志记录器的默认处理日志处理器
-    # logging.getLogger("uvicorn.access").handlers = []
-    # logging.getLogger("uvicorn.error").handlers = []
-    # logging.getLogger("uvicorn").handlers = []
     return app
 
 
 def register_router(app: FastAPI):
-    from internal.controllers.test import router as test_router
+    from internal.controller.test import router as test_router
     app.include_router(test_router)
 
 

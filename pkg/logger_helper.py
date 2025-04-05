@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 from pathlib import Path
@@ -20,6 +21,14 @@ class LogFormat:
     """日志格式模板"""
     CONSOLE = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{line}</cyan> | <magenta>{extra[trace_id]}</magenta> - <level>{message}</level>"
     FILE = "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{line} | {extra[trace_id]} - {message}"
+
+
+def remove_logging_logger():
+    # 清除uvicorn相关日志记录器的默认处理日志处理器
+    # logging.getLogger("uvicorn.access").handlers = []
+    # logging.getLogger("uvicorn.error").handlers = []
+    # logging.getLogger("uvicorn").handlers = []
+    pass
 
 
 def init_logger(env: str = "dev") -> logger:

@@ -3,7 +3,7 @@ from typing import AsyncGenerator
 
 from redis.asyncio import ConnectionPool, Redis
 from sqlalchemy import event, text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
 from internal.setting import setting
@@ -16,7 +16,7 @@ Base = declarative_base()
 # 创建异步引擎
 engine = create_async_engine(
     setting.sqlalchemy_database_uri,
-    echo=setting.sqlalchemy_echo,
+    echo=False,
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
@@ -30,15 +30,15 @@ engine = create_async_engine(
 AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 
-# 创建依赖：每次请求使用一个数据库会话
 @asynccontextmanager
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
-        except Exception:
+        except Exception as e:
             # Check if a transaction is active before rolling back
             if session.is_active:
+                Logger.warning(f"Rolling back transaction due to exception: {type(e).__name__} - {repr(e)}")
                 await session.rollback()
             raise
 
@@ -54,7 +54,7 @@ def before_cursor_execute(conn, cursor, statement, parameters, context, executem
 
 
 # 监听 before_cursor_execute 事件，将事件处理函数绑定到 Engine 上
-event.listen(AsyncEngine, "before_cursor_execute", before_cursor_execute)
+event.listen(engine.sync_engine, "before_cursor_execute", before_cursor_execute)
 
 # 创建全局的连接池实例
 RedisConnectPool = ConnectionPool.from_url(
