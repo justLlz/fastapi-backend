@@ -16,7 +16,7 @@ class RecorderMiddleware(BaseHTTPMiddleware):
         with Logger.contextualize(trace_id=trace_id):
             # 记录访问日志
             Logger.info(
-                f"access log, ip: {request.client.host}, method: {request.method}, path: {request.url.path}, params: {dict(request.query_params)}"
+                f"access log: ip: {request.client.host}, method: {request.method}, path: {request.url.path}, params: {dict(request.query_params)}"
             )
 
             # 开始计时
@@ -30,7 +30,7 @@ class RecorderMiddleware(BaseHTTPMiddleware):
 
             # 记录响应日志
             Logger.info(
-                f"response log, process_time: {process_time:.4f}s"
+                f"response log: {response.status_code}, process_time: {process_time:.4f}s"
             )
 
         return response
