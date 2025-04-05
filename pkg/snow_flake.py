@@ -6,6 +6,3 @@ snowflake_generator = SnowflakeGenerator(1)
 
 def generate_snowflake_id():
     return next(snowflake_generator)
-
-if __name__ == '__main__':
-    print(generate_snowflake_id())

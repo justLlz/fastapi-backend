@@ -60,7 +60,6 @@ class LocalConfig(BaseConfig):
 
     class Config:
         env_file = (project_root_path / "configs" / ".env.local").as_posix()
-        print(env_file)
         env_file_encoding = "utf-8"
 
 
