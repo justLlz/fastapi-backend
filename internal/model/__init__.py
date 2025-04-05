@@ -8,7 +8,7 @@ from starlette import status
 
 from internal.infra.db import Base, get_session
 from pkg import datetime_to_string, get_utc_datetime
-from pkg.logger import Logger
+from pkg.logger_helper import Logger
 from pkg.snow_flake import generate_snowflake_id
 
 

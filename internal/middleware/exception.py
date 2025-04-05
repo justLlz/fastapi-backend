@@ -4,7 +4,7 @@ from fastapi import Request
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from pkg.resp import response_factory
+from pkg.resp_helper import response_factory
 
 
 class ExceptionHandlingMiddleware(BaseHTTPMiddleware):

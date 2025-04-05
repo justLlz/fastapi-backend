@@ -8,7 +8,7 @@ from sqlalchemy.orm import declarative_base
 
 from internal.setting import setting
 from pkg import json_dumps, json_loads
-from pkg.logger import Logger
+from pkg.logger_helper import Logger
 
 # 创建 SQLAlchemy 基类
 Base = declarative_base()

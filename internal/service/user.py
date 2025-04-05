@@ -4,7 +4,7 @@ from fastapi.responses import ORJSONResponse
 import pkg
 from internal.models.user import User
 from internal.services import BaseService
-from pkg.resp import response_factory
+from pkg.resp_helper import response_factory
 
 
 class UserService(BaseService):

@@ -1,8 +1,8 @@
 from typing import Optional
 
 from pkg import session_list_cache_key
-from internal.dao.cache import Cache
-from pkg.logger import Logger
+from internal.utils.cache_helpers import Cache
+from pkg.logger_helper import Logger
 
 
 async def verify_session(session: str) -> (Optional[dict], bool):

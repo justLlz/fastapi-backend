@@ -3,7 +3,7 @@ from typing import Any, Awaitable, Callable, Dict
 
 from loguru import logger
 
-from internal.dao.cache import cache
+from internal.utils.cache_helpers import cache
 
 
 class AsyncTaskManager:

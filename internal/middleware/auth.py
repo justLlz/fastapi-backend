@@ -3,7 +3,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from internal.core.session import verify_session
 from internal.core.signature import verify_signature
-from pkg.resp import response_factory
+from pkg.resp_helper import response_factory
 
 not_auth_session_path = [
     "/auth/login",

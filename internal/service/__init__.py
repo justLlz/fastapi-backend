@@ -1,7 +1,7 @@
 from typing import Type, Union
 
-from internal import dao
-from internal.dao.cache import Cache
+import internal.utils.orm_helpers
+from internal.utils.cache_helpers import Cache
 from internal.models import MixinModel
 
 
@@ -10,12 +10,12 @@ class BaseService:
 
     @classmethod
     def querier(cls, model: Type[MixinModel]):
-        return dao.QueryBuilder(model)
+        return internal.utils.orm_helpers.QueryBuilder(model)
 
     @classmethod
     def updater(cls, model: Union[Type[MixinModel], MixinModel]):
-        return dao.UpdateBuilder(model)
+        return internal.utils.orm_helpers.UpdateBuilder(model)
 
     @classmethod
     def counter(cls, model: Type[MixinModel]):
-        return dao.CountBuilder(model)
+        return internal.utils.orm_helpers.CountBuilder(model)
