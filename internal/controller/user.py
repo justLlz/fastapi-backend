@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request
 
-from internal.services.user import user_srv
+from internal.service.user import user_srv
 from pkg.resp_helper import response_factory
 
 router = APIRouter(prefix="/test", tags=["test"])

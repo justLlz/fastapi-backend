@@ -180,7 +180,7 @@ class ResponseFactory:
         return response_func(data=data, message=message)
 
     def register(self, code: int, *, default_message: str = ""):
-        """注册新的响应类型（装饰器）"""
+        """注册新响应类型（装饰器）"""
 
         def decorator(f):
             self._mapping[code] = partial(f, code=code, message=default_message)
