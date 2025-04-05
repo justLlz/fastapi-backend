@@ -4,13 +4,13 @@ import sys
 from pathlib import Path
 
 from loguru import logger
-from pkg import colorprint, get_sys_env_var
+from pkg import colorprint, get_sys_env_var, project_root_path
 
 
 class LogConfig:
     """日志配置中心"""
     LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    DIR: Path = Path(__file__).parent.parent / "logs"
+    DIR: Path = project_root_path / "logs"
     FILE_NAME: str = "app_{time:YYYY-MM-DD}.log"
     ROTATION: str = os.getenv("LOG_ROTATION", "100 MB")  # 支持大小/时间轮转
     RETENTION: str = os.getenv("LOG_RETENTION", "30 days")
@@ -38,7 +38,7 @@ def init_logger(env: str = "dev") -> logger:
         LogConfig.DIR.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         colorprint.red(f"Failed to create log directory: {e}")
-        sys.exit(1)
+        raise
 
     logger.remove()
     logger.configure(extra={"trace_id": "-"})

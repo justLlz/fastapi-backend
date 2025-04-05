@@ -6,6 +6,7 @@ import string
 import time
 import random
 import uuid
+from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlencode, urlunparse
 
@@ -14,6 +15,15 @@ import orjson
 import pytz
 import shortuuid
 import xxhash
+
+
+def get_project_root_path() -> Path:
+    """
+    获取项目根目录的路径。
+
+    :return: 项目根目录的路径
+    """
+    return Path(__file__).parent.parent.absolute()
 
 
 def json_dumps(*args, **kwargs):
@@ -277,3 +287,5 @@ class ColorPrint:
 
 
 colorprint = ColorPrint()
+
+project_root_path: Path = get_project_root_path()

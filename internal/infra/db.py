@@ -6,7 +6,7 @@ from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
-from internal.setting import setting
+from internal.config.setting import setting
 from pkg import json_dumps, json_loads
 from pkg.logger_helper import Logger
 

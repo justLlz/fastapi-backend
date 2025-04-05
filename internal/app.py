@@ -5,8 +5,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError, HTTPException
 
-from internal.setting import setting
-from pkg import colorprint, get_sys_env_var, resp_helper
+from internal.config.setting import setting
+from pkg import colorprint, get_sys_env_var
 from pkg.resp_helper import response_factory
 
 
@@ -85,8 +85,7 @@ async def lifespan(_app: FastAPI):
     # 检查环境变量
     env_var = get_sys_env_var()
     if env_var not in ["local", "dev", "test", "prod"]:
-        colorprint.red(f"Invalid ENV: {env_var}")
-        sys.exit(1)
+        raise Exception(f"Invalid ENV: {env_var}")
 
     colorprint.green("Check completed, Application will start.")
     # 进入应用生命周期

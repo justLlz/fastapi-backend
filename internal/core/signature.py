@@ -5,7 +5,7 @@ from typing import Dict
 
 from fastapi import HTTPException, status
 
-from internal.setting import setting
+from internal.config.setting import setting
 from pkg.logger_helper import Logger
 
 

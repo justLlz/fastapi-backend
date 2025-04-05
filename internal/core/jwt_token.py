@@ -4,7 +4,7 @@ from typing import Optional
 import jwt
 from loguru import logger
 
-from internal.setting import setting
+from internal.config.setting import setting
 
 
 async def verify_jwt_token(token: str) -> (Optional[int], bool):

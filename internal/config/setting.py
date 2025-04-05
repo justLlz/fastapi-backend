@@ -1,9 +1,8 @@
-import sys
 from functools import lru_cache
 from pathlib import Path
 
 from internal.config import BaseConfig, DevelopmentConfig, LocalConfig, ProductionConfig, TestingConfig
-from pkg import colorprint, get_sys_env_var
+from pkg import colorprint, get_sys_env_var, project_root_path
 
 
 @lru_cache
@@ -21,14 +20,12 @@ def init_setting() -> BaseConfig:
     }
     config_class = config_classes_gather.get(cur_env_var)
     if not config_class:
-        colorprint.red(f"Invalid FAST_API_ENV value: {cur_env_var}")
-        sys.exit(1)
+        raise Exception(f"Invalid FAST_API_ENV value: {cur_env_var}")
 
-    env_file_path = (Path(__file__).parent.parent / "configs" / f".env.{cur_env_var}").as_posix()
+    env_file_path = (project_root_path / "configs" / f".env.{cur_env_var}").as_posix()
     # 检查env_file_path是否存在
     if not Path(env_file_path).exists():
-        colorprint.red(f"Env file not found: {env_file_path}")
-        sys.exit(1)
+        raise Exception(f"Env file not found: {env_file_path}")
 
     colorprint.green(f"Env file path: {env_file_path}.")
     s = config_class(_env_file=env_file_path, _env_file_encoding="utf-8")
