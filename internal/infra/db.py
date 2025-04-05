@@ -2,8 +2,8 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from redis.asyncio import ConnectionPool, Redis
-from sqlalchemy import Engine, event, text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import event, text
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import declarative_base
 
 from internal.setting import setting
@@ -18,6 +18,10 @@ engine = create_async_engine(
     setting.sqlalchemy_database_uri,
     echo=setting.sqlalchemy_echo,
     pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20,
+    pool_timeout=30,
+    pool_recycle=1800,
     json_serializer=json_dumps,
     json_deserializer=json_loads
 )
@@ -37,8 +41,6 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
             if session.is_active:
                 await session.rollback()
             raise
-        finally:
-            await session.close()
 
 
 def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
@@ -52,18 +54,23 @@ def before_cursor_execute(conn, cursor, statement, parameters, context, executem
 
 
 # 监听 before_cursor_execute 事件，将事件处理函数绑定到 Engine 上
-event.listen(Engine, "before_cursor_execute", before_cursor_execute)
+event.listen(AsyncEngine, "before_cursor_execute", before_cursor_execute)
 
 # 创建全局的连接池实例
-RedisConnectPool = ConnectionPool.from_url(setting.redis_url, encoding="utf-8", decode_responses=True)
+RedisConnectPool = ConnectionPool.from_url(
+    setting.redis_url,
+    encoding="utf-8",
+    decode_responses=True,
+    max_connections=20
+)
+
+_redis = Redis(connection_pool=RedisConnectPool)
 
 
 @asynccontextmanager
 async def get_redis() -> AsyncGenerator[Redis, None]:
-    redis = Redis(connection_pool=RedisConnectPool)  # 使用连接池创建 Redis 客户端
     try:
-        yield redis
-    except Exception:
+        yield _redis
+    except Exception as e:
+        Logger.error(f"Redis operation failed: {e}")
         raise
-    finally:
-        await redis.close()
