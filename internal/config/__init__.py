@@ -56,7 +56,7 @@ class LocalConfig(BaseConfig):
     DEBUG: bool = True
 
     class Config:
-        env_file = (Path().cwd() / "configs" / ".env.local").as_posix()
+        env_file = (Path(__file__).parent.parent / "configs" / ".env.local").as_posix()
         env_file_encoding = "utf-8"
 
 
@@ -64,15 +64,15 @@ class DevelopmentConfig(BaseConfig):
     DEBUG: bool = True
 
     class Config:
-        env_file = (Path().cwd() / "configs" / ".env.dev").as_posix()
+        env_file = (Path(__file__).parent.parent / "configs" / ".env.dev").as_posix()
         env_file_encoding = "utf-8"
 
 
 class TestingConfig(BaseConfig):
-    DEBUG = True
+    DEBUG = False
 
     class Config:
-        env_file = (Path().cwd() / "configs" / ".env.test").as_posix()
+        env_file = (Path(__file__).parent.parent / "configs" / ".env.test").as_posix()
         env_file_encoding = "utf-8"
 
 
@@ -80,5 +80,5 @@ class ProductionConfig(BaseConfig):
     DEBUG = False
 
     class Config:
-        env_file = (Path().cwd() / "configs" / ".env.prod").as_posix()
+        env_file = (Path(__file__).parent.parent / "configs" / ".env.prod").as_posix()
         env_file_encoding = "utf-8"
