@@ -63,7 +63,7 @@ class BaseBuilder:
         """范围查询条件"""
         return self.where_by(**{column_name: {"between": range_values}})
 
-    def or_(self, *conditions) -> 'BaseBuilder':
+    def or_(self, *conditions) -> "BaseBuilder":
         """
         添加 OR 条件组合
         示例:
@@ -80,7 +80,7 @@ class BaseBuilder:
         self.stmt = self.stmt.where(or_(*conditions))
         return self
 
-    def distinct(self) -> 'BaseBuilder':
+    def distinct(self) -> "BaseBuilder":
         self.stmt = self.stmt.distinct()
         return self
 
@@ -89,7 +89,7 @@ class BaseBuilder:
         if column is None:
             raise HTTPException(
                 HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Column '{column_name}' not found in model {self.model.__name__}",
+                detail=f"Column {column_name} not found in model {self.model.__name__}",
             )
         return column
 
@@ -118,7 +118,7 @@ class BaseBuilder:
             if not isinstance(value, (list, tuple)) or len(value) != 2:
                 raise HTTPException(
                     400,
-                    detail="Operator 'between' requires a list/tuple with two values",
+                    detail="Operator between requires a list/tuple with two values",
                 )
             return column.between(value[0], value[1])
         else:
@@ -173,7 +173,7 @@ class QueryBuilder(BaseBuilder):
         super().__init__(model)
         self.stmt: Select = select(self.model).where(model.deleted_at.is_(None))
 
-    async def scalars_all(self) -> list['MixinModelType']:
+    async def scalars_all(self) -> list[MixinModelType]:
         async with get_session() as sess:
             try:
                 result = await sess.execute(self.stmt)
@@ -213,11 +213,11 @@ class QueryBuilder(BaseBuilder):
         data = await self.scalar_one_or_none()
         return data
 
-    def order_by(self, col: InstrumentedAttribute, sort: str = Sort.DESC) -> 'QueryBuilder':
+    def order_by(self, col: InstrumentedAttribute, sort: str = Sort.DESC) -> "QueryBuilder":
         self.stmt = self.stmt.order_by(asc(col) if sort == Sort.ASC else desc(col))
         return self
 
-    def paginate(self, page: Optional[int] = None, limit: Optional[int] = None) -> 'QueryBuilder':
+    def paginate(self, page: Optional[int] = None, limit: Optional[int] = None) -> "QueryBuilder":
         if page and limit:
             self.stmt = self.stmt.offset((page - 1) * limit).limit(limit)
         return self
