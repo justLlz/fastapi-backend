@@ -8,7 +8,7 @@ from sqlalchemy.orm import declarative_base
 
 from internal.config.setting import setting
 from pkg import json_dumps, json_loads
-from pkg.logger_helper import Logger
+from pkg.logger_helper import logger
 
 # 创建 SQLAlchemy 基类
 Base = declarative_base()
@@ -38,7 +38,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         except Exception as e:
             # Check if a transaction is active before rolling back
             if session.is_active:
-                Logger.warning(f"Rolling back transaction due to exception: {type(e).__name__} - {repr(e)}")
+                logger.warning(f"Rolling back transaction due to exception: {type(e).__name__} - {repr(e)}")
                 await session.rollback()
             raise
 
@@ -48,9 +48,9 @@ def before_cursor_execute(conn, cursor, statement, parameters, context, executem
         compiled_statement = statement
         if parameters:
             compiled_statement = text(statement % tuple(parameters)).compile(compile_kwargs={"literal_binds": True})
-        Logger.info(f"Executing SQL: {compiled_statement}")
+        logger.info(f"Executing SQL: {compiled_statement}")
     except Exception as e:
-        Logger.error(f"Error while printing SQL: {e}")
+        logger.error(f"Error while printing SQL: {e}")
 
 
 # 监听 before_cursor_execute 事件，将事件处理函数绑定到 Engine 上
@@ -72,5 +72,5 @@ async def get_redis() -> AsyncGenerator[Redis, None]:
     try:
         yield _redis
     except Exception as e:
-        Logger.error(f"Redis operation failed: {e}")
+        logger.error(f"Redis operation failed: {e}")
         raise

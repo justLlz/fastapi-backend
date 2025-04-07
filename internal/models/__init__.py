@@ -8,7 +8,7 @@ from starlette import status
 
 from internal.infra.db import Base, get_session
 from pkg import datetime_to_string, get_utc_datetime
-from pkg.logger_helper import Logger
+from pkg.logger_helper import logger
 from pkg.snow_flake import generate_snowflake_id
 
 
@@ -27,7 +27,7 @@ class MixinModel(Base):
                 sess.add(self)
                 await sess.commit()
         except Exception as e:
-            Logger.error(f"{self.__class__.__name__} save error: {e}")
+            logger.error(f"{self.__class__.__name__} save error: {e}")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="db save error")
 
     @classmethod

@@ -1,9 +1,9 @@
 import logging
 import os
 import sys
+import loguru
 from pathlib import Path
 
-from loguru import logger
 from pkg import colorprint, get_sys_env_var, project_root_path
 
 
@@ -25,13 +25,13 @@ class LogFormat:
 
 def remove_logging_logger():
     # 清除uvicorn相关日志记录器的默认处理日志处理器
-    # logging.getLogger("uvicorn.access").handlers = []
-    # logging.getLogger("uvicorn.error").handlers = []
-    # logging.getLogger("uvicorn").handlers = []
+    logging.getLogger("uvicorn.access").handlers = []
+    logging.getLogger("uvicorn.error").handlers = []
+    logging.getLogger("uvicorn").handlers = []
     pass
 
 
-def init_logger(env: str = "dev") -> logger:
+def init_logger(env: str = "dev") -> loguru.logger:
     colorprint.green("Init logger...")
     """设置日志记录器的配置"""
     try:
@@ -40,11 +40,12 @@ def init_logger(env: str = "dev") -> logger:
         colorprint.red(f"Failed to create log directory: {e}")
         raise
 
-    logger.remove()
-    logger.configure(extra={"trace_id": "-"})
+    l = loguru.logger
+    l.remove()
+    l.configure(extra={"trace_id": "-"})
 
     if env in ("dev", "local"):
-        logger.add(
+        l.add(
             sink=sys.stderr,
             format=LogFormat.CONSOLE,
             level=LogConfig.LEVEL,
@@ -52,7 +53,7 @@ def init_logger(env: str = "dev") -> logger:
             colorize=True
         )
     else:
-        logger.add(
+        l.add(
             sink=LogConfig.DIR / LogConfig.FILE_NAME,
             format=LogFormat.FILE,
             level=LogConfig.LEVEL,
@@ -64,7 +65,7 @@ def init_logger(env: str = "dev") -> logger:
 
         )
     colorprint.green("Init logger successfully.")
-    return logger
+    return l
 
 
-Logger = init_logger(get_sys_env_var())
+logger = init_logger(get_sys_env_var())

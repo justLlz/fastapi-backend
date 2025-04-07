@@ -6,7 +6,7 @@ from pydantic import IPvAnyAddress
 from pydantic.v1 import BaseSettings
 
 from pkg import project_root_path
-from pkg.logger_helper import Logger
+from pkg.logger_helper import logger
 
 
 class BaseConfig(BaseSettings):

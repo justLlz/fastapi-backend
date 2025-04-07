@@ -4,7 +4,7 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-from pkg.logger_helper import Logger
+from pkg.logger_helper import logger
 
 
 class RecorderMiddleware(BaseHTTPMiddleware):
@@ -13,9 +13,9 @@ class RecorderMiddleware(BaseHTTPMiddleware):
         trace_id = request.headers.get("X-Trace-ID", str(uuid.uuid4().hex))
 
         # 使用 logger 上下文管理器
-        with Logger.contextualize(trace_id=trace_id):
+        with logger.contextualize(trace_id=trace_id):
             # 记录访问日志
-            Logger.info(
+            logger.info(
                 f"access log: ip: {request.client.host}, method: {request.method}, path: {request.url.path}, params: {dict(request.query_params)}"
             )
 
@@ -29,7 +29,7 @@ class RecorderMiddleware(BaseHTTPMiddleware):
             response.headers["X-Trace-ID"] = trace_id
 
             # 记录响应日志
-            Logger.info(
+            logger.info(
                 f"response log: {response.status_code}, process_time: {process_time:.4f}s"
             )
 

@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Request
 from internal.utils.orm_helpers import CountBuilder, QueryBuilder, UpdateBuilder
 from internal.models.user import User
 from internal.utils.asyncio_task import async_task_manager
-from pkg.logger_helper import Logger
+from pkg.logger_helper import logger
 from pkg.resp_helper import response_factory
 
 router = APIRouter(prefix="/test", tags=["test"])
@@ -99,7 +99,7 @@ async def test_custom_response_class_special_types(_: Request):
 
 async def async_task():
     """可以继承上下文的trace_id"""
-    Logger.info(f"async_task_trace_id-test")
+    logger.info(f"async_task_trace_id-test")
     await asyncio.sleep(10)
 
 
@@ -212,7 +212,7 @@ async def test_dao():
         updated_user = await QueryBuilder(User).eq("id", test_user.id).get_or_exec()
         assert updated_user.username == updated_name
     except Exception as e:
-        Logger.error(f"test_dao error: {e}")
+        logger.error(f"test_dao error: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
     finally:
         test_user.deleted_at = datetime.now()

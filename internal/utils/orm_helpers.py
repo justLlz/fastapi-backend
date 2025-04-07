@@ -9,7 +9,7 @@ from internal.infra.db import get_session
 from internal.models import MixinModel
 from internal.utils.mixin_type import MixinModelType
 from pkg import get_utc_datetime
-from pkg.logger_helper import Logger
+from pkg.logger_helper import logger
 
 
 class Sort:
@@ -179,7 +179,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalars().all()
             except Exception as e:
-                Logger.error(f"{self.model.__name__} scalars_all: {repr(e)}")
+                logger.error(f"{self.model.__name__} scalars_all: {repr(e)}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return [i for i in data]
 
@@ -189,7 +189,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalar_one_or_none()
             except Exception as e:
-                Logger.error(f"{self.model.__name__} scalar_one_or_none: {repr(e)}")
+                logger.error(f"{self.model.__name__} scalar_one_or_none: {repr(e)}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return data
 
@@ -199,7 +199,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalars().first()
             except Exception as e:
-                Logger.error(f"{self.model.__name__} scalars_first: {repr(e)}")
+                logger.error(f"{self.model.__name__} scalars_first: {repr(e)}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return data
 
@@ -235,7 +235,7 @@ class CountBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalar()
             except Exception as e:
-                Logger.error(f"{self.model.__name__}: {repr(e)}")
+                logger.error(f"{self.model.__name__}: {repr(e)}")
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
         return data
 
@@ -283,5 +283,5 @@ class UpdateBuilder(BaseBuilder):
                 await sess.execute(self.stmt.execution_options(synchronize_session=False))
                 await sess.commit()
             except Exception as e:
-                Logger.error(f"{self.model.__name__}: {repr(e)}")
+                logger.error(f"{self.model.__name__}: {repr(e)}")
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
