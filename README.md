@@ -1,3 +1,6 @@
+# fastapi-backend
+
+```text
 fastapi-backend/
     /configs    // 配置文件
     /internal   // 内部模块
@@ -20,3 +23,4 @@ fastapi-backend/
     请求示例：
         前端请求 -- > 中间件 -- > 控制器 -- > 服务层 -- > 数据访问层 -- > 数据库(model) -- > 控制器(返回entity) --> 响应 --> 前端
     
+```
