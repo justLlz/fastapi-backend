@@ -252,7 +252,7 @@ class UpdateBuilder(BaseBuilder):
 
         self.update_dict = {}
 
-    def update(self, **kwargs) -> 'UpdateBuilder':
+    def update(self, **kwargs) -> "UpdateBuilder":
         if not kwargs:
             return self
 
