@@ -1,12 +1,12 @@
 from typing import Type, Union
 
 import internal.utils.orm_helpers
-from internal.utils.cache_helpers import Cache
+from internal.utils.cache_helpers import cache
 from internal.models import MixinModel
 
 
 class BaseService:
-    cache = Cache()
+    cache = cache
 
     @classmethod
     def querier(cls, model: Type[MixinModel]):

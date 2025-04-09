@@ -17,6 +17,8 @@ fastapi-backend/
         /service        // 服务层，主要业务逻辑
         /utils          // 内部工具包
     /pkg        // 工具模块
+    /proto      // proto文件
+    /proto_generated //proto生成的文件
     /scripts    // 脚本
     /main.go    // 入口文件，初始化
     

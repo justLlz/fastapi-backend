@@ -23,45 +23,45 @@ class BaseBuilder:
         self.stmt: Select = Select()
 
     # 单独的操作符方法
-    def eq(self, column_name: str, value: Any) -> "BaseBuilder":
+    def eq(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
         """等于条件"""
-        return self.where_by(**{column_name: {"eq": value}})
+        return self.where(column == value)
 
-    def ne(self, column_name: str, value: Any) -> "BaseBuilder":
+    def ne(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
         """不等于条件"""
-        return self.where_by(**{column_name: {"ne": value}})
+        return self.where(column != value)
 
-    def gt(self, column_name: str, value: Any) -> "BaseBuilder":
+    def gt(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
         """大于条件"""
-        return self.where_by(**{column_name: {"gt": value}})
+        return self.where(column > value)
 
-    def lt(self, column_name: str, value: Any) -> "BaseBuilder":
+    def lt(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
         """小于条件"""
-        return self.where_by(**{column_name: {"lt": value}})
+        return self.where(column < value)
 
-    def ge(self, column_name: str, value: Any) -> "BaseBuilder":
+    def ge(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
         """大于等于条件"""
-        return self.where_by(**{column_name: {"ge": value}})
+        return self.where(column >= value)
 
-    def le(self, column_name: str, value: Any) -> "BaseBuilder":
+    def le(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
         """小于等于条件"""
-        return self.where_by(**{column_name: {"le": value}})
+        return self.where(column <= value)
 
-    def in_(self, column_name: str, values: list) -> "BaseBuilder":
+    def in_(self, column: InstrumentedAttribute, values: list | tuple) -> "BaseBuilder":
         """包含于列表条件"""
-        return self.where_by(**{column_name: {"in": values}})
+        return self.where(column.in_(values))
 
-    def like(self, column_name: str, pattern: str) -> "BaseBuilder":
+    def like(self, column: InstrumentedAttribute, pattern: str) -> "BaseBuilder":
         """模糊匹配条件"""
-        return self.where_by(**{column_name: {"like": pattern}})
+        return self.where(column.like(f"%{pattern}%"))
 
-    def is_null(self, column_name: str) -> "BaseBuilder":
+    def is_null(self, column: InstrumentedAttribute) -> "BaseBuilder":
         """为空检查条件"""
-        return self.where_by(**{column_name: {"is_null": True}})
+        return self.where(column.is_(None))
 
-    def between(self, column_name: str, range_values: Tuple[Any, Any]) -> "BaseBuilder":
+    def between(self, column: InstrumentedAttribute, range_values: Tuple[Any, Any]) -> "BaseBuilder":
         """范围查询条件"""
-        return self.where_by(**{column_name: {"between": range_values}})
+        return self.where(column.between(range_values[0], range_values[1]))
 
     def or_(self, *conditions) -> "BaseBuilder":
         """
@@ -111,7 +111,7 @@ class BaseBuilder:
         elif operator == "in":
             return column.in_(value)
         elif operator == "like":
-            return column.like(value)
+            return column.like(f"%{value}%")
         elif operator == "is_null":
             return column.is_(None)
         elif operator == "between":
@@ -132,7 +132,7 @@ class BaseBuilder:
         example:
         builder = QueryBuilder(MyModel)
         builder.where_v1(MyModel.id == 1, MyModel.name == "Alice")
-        stmt = builder.stmt  # SELECT * FROM my_model WHERE id = 1 AND name = 'Alice'
+        stmt = builder.stmt  # SELECT * FROM my_model WHERE id = 1 AND name = "Alice"
 
         example:
         filters = [MyModel.id == 1, MyModel.name == "Alice"]
