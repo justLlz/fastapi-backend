@@ -7,7 +7,7 @@ from sqlalchemy.orm import InstrumentedAttribute
 from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
 from internal.infra.db import get_session
-from internal.models import MixinModel
+from internal.models import ModelMixin
 from internal.utils.mixin_type import MixinModelType
 from pkg import get_utc_datetime
 from pkg.logger_helper import logger
@@ -19,7 +19,7 @@ class Sort:
 
 
 class BaseBuilder:
-    def __init__(self, base_model: Type[MixinModel]):
+    def __init__(self, base_model: Type[ModelMixin]):
         self._model = base_model
         self._stmt: Select | Delete | Update | None = None
 
@@ -174,7 +174,7 @@ class BaseBuilder:
 
 
 class QueryBuilder(BaseBuilder):
-    def __init__(self, model: Type[MixinModel]):
+    def __init__(self, model: Type[ModelMixin]):
         super().__init__(model)
         self.stmt: Select = select(self._model).where(model.deleted_at.is_(None))
 
@@ -229,7 +229,7 @@ class QueryBuilder(BaseBuilder):
 
 
 class CountBuilder(BaseBuilder):
-    def __init__(self, base_model: Type[MixinModel], column: InstrumentedAttribute = None):
+    def __init__(self, base_model: Type[ModelMixin], column: InstrumentedAttribute = None):
         super().__init__(base_model)
         column = self._model.id if column is None else column
         self.stmt: Select = select(func.count(column)).where(base_model.deleted_at.is_(None))
@@ -246,7 +246,7 @@ class CountBuilder(BaseBuilder):
 
 
 class UpdateBuilder(BaseBuilder):
-    def __init__(self, base_model: Union[Type[MixinModel], MixinModel]):
+    def __init__(self, base_model: Union[Type[ModelMixin], ModelMixin]):
         super().__init__(base_model if isinstance(base_model, type) else base_model.__class__)
         # 判断 base_model 是否为类，如果是类则创建不带条件的更新语句
         if isinstance(base_model, type):

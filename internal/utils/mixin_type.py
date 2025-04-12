@@ -5,7 +5,7 @@ from pydantic import AfterValidator, Field
 from sqlalchemy import Column, ColumnElement
 from sqlalchemy.orm import InstrumentedAttribute
 
-from internal.models import MixinModel
+from internal.models import ModelMixin
 from pkg import validate_phone_number
 
 
@@ -22,7 +22,7 @@ def normalize_column(col: InstrumentedAttribute | Column) -> ColumnElement:
 
 
 MixinValType = Union[list, set, tuple, frozenset, str, int, float, bool, Decimal, None]
-MixinModelType = TypeVar("MixinModelType", bound=MixinModel)  # 定义一个泛型变量 T，继承自 ModelMixin
+MixinModelType = TypeVar("MixinModelType", bound=ModelMixin)  # 定义一个泛型变量 T，继承自 ModelMixin
 
 
 def validate_phone(value):

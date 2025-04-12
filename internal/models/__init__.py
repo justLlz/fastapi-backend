@@ -12,7 +12,7 @@ from pkg.logger_helper import logger
 from pkg.snow_flake import generate_snowflake_id
 
 
-class MixinModel(Base):
+class ModelMixin(Base):
     """统一存UTC时间不带时区信息"""
     __abstract__ = True
 
@@ -31,7 +31,7 @@ class MixinModel(Base):
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="db save error")
 
     @classmethod
-    def create(cls, **kwargs) -> 'MixinModel':
+    def create(cls, **kwargs) -> "ModelMixin":
         cur_datetime = get_utc_datetime()
         instance = cls(id=generate_snowflake_id(), created_at=cur_datetime, updated_at=cur_datetime)
         instance._populate(kwargs)
