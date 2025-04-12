@@ -182,12 +182,12 @@ def deep_compare_dict(d1, d2):
     return True
 
 
-def session_cache_key(session: str) -> str:
-    return f"session:{session}"
+def token_cache_key(token: str) -> str:
+    return f"token:{token}"
 
 
-def session_list_cache_key(user_id: int) -> str:
-    return f"session_list:{user_id}"
+def token_list_cache_key(user_id: int) -> str:
+    return f"token_list:{user_id}"
 
 
 # 生成唯一的文件名
@@ -195,7 +195,7 @@ def generate_unique_filename(filename: str) -> str:
     return f"{uuid.uuid4().hex}_{filename}"
 
 
-def create_uuid_session():
+def create_uuid_token():
     return shortuuid.uuid()
 
 

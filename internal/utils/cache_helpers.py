@@ -7,43 +7,43 @@ from fastapi import HTTPException, status
 from loguru import logger
 from orjson import JSONDecodeError
 
-from pkg import create_uuid_session, json_dumps, json_loads, session_cache_key, session_list_cache_key
+from pkg import create_uuid_token, json_dumps, json_loads, token_cache_key, token_list_cache_key
 from internal.infra.db import get_redis
 
 
 class Cache:
     @classmethod
-    async def set_session(cls, session: str, user_data: dict, ex: Optional[int] = 10800):
+    async def set_token(cls, token: str, user_data: dict, ex: Optional[int] = 10800):
         """
         设置会话键值，并设置过期时间。
         """
-        key = session_cache_key(session)
+        key = token_cache_key(token)
         value = json_dumps(user_data)
         await cls.set_value(key, value, ex)
 
     @classmethod
-    async def get_session_value(cls, session: str) -> dict:
+    async def get_token_value(cls, token: str) -> dict:
         """
         获取会话中的用户ID和用户类型。
         """
-        return await cls.get_value(session_cache_key(session))
+        return await cls.get_value(token_cache_key(token))
 
     @classmethod
-    async def set_session_list(cls, user_id: int, session: str):
-        cache_key = session_list_cache_key(user_id)
-        session_list = await cls.get_list(cache_key)
-        length_session_list = len(session_list)
+    async def set_token_list(cls, user_id: int, token: str):
+        cache_key = token_list_cache_key(user_id)
+        token_list = await cls.get_list(cache_key)
+        length_token_list = len(token_list)
         try:
             async with get_redis() as redis:
-                if not session_list or length_session_list < 3:
-                    await redis.rpush(cache_key, session)
+                if not token_list or length_token_list < 3:
+                    await redis.rpush(cache_key, token)
                 else:
-                    if len(session_list) >= 3:
-                        old_session = await redis.lpop(cache_key)
-                        # 插入新的session
-                        await redis.rpush(cache_key, session)
+                    if len(token_list) >= 3:
+                        old_token = await redis.lpop(cache_key)
+                        # 插入新的token
+                        await redis.rpush(cache_key, token)
                         logger.warning(
-                            f"Session list for user {user_id} is full, popping and deleting oldest session: {old_session}")
+                            f"token list for user {user_id} is full, popping and deleting oldest token: {old_token}")
         except Exception as e:
             logger.error(f"Failed to pop ande delete value from list {cache_key}: {repr(e)}")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
@@ -207,13 +207,13 @@ class Cache:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     @classmethod
-    async def login_and_set_session(cls, user_data: dict) -> str:
-        session = create_uuid_session()
+    async def login_and_set_token(cls, user_data: dict) -> str:
+        token = create_uuid_token()
         user_id = user_data["id"]
 
-        await cls.set_session(session, user_data)
-        await cls.set_session_list(user_id, session)
-        return session
+        await cls.set_token(token, user_data)
+        await cls.set_token_list(user_id, token)
+        return token
 
     @classmethod
     async def release_lock(cls, lock_key: str, identifier: str) -> bool:

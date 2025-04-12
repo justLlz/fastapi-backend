@@ -2,32 +2,27 @@ from contextvars import ContextVar
 
 from fastapi import HTTPException, Request
 
-trace_id_context_var: ContextVar[str] = ContextVar("trace_id", default="unknown")
 
-
-def get_user_data(request: Request) -> dict:
-    return request.state.user_data
-
-
-def get_user_id(request: Request) -> int:
+def set_user_id(request: Request, user_id: int):
     """
-    从请求中获取用户ID
+    设置用户ID
+    :param request:
+    :param user_id:
+    :return:
+    """
+    request.state.user_id = user_id
+
+
+def get_user_id(request: Request):
+    """
+    获取用户ID
     :param request:
     :return:
     """
-    user_data = get_user_data(request)
-    user_id = user_data.get("id")
-    if user_id is None:
-        raise HTTPException(status_code=401, detail="user_id is None")
-    return user_id
+    return request.state.user_id
 
 
-def get_trace_id(request: Request):
-    """异步任务使用"""
-    trace_id = request.state.trace_id
-    if trace_id is None:
-        raise HTTPException(400, detail="trace_id is None")
-    return trace_id
+trace_id_context_var: ContextVar[str] = ContextVar("trace_id", default="unknown")
 
 
 def set_trace_id_context_var(trace_id: str):
@@ -46,3 +41,24 @@ def get_trace_id_context_var() -> str:
         raise LookupError("trace_id is unknown")
 
     return trace_id
+
+
+user_id_context_var: ContextVar[int] = ContextVar("user_id", default=-1)
+
+
+def set_user_id_context_var(user_id: int):
+    """设置当前请求的 user_id"""
+    user_id_context_var.set(user_id)
+
+
+def get_user_id_context_var() -> int:
+    """获取当前请求的 user_id"""
+    try:
+        user_id = user_id_context_var.get()
+    except LookupError:
+        raise HTTPException(status_code=400, detail="user_id is not set")
+
+    if user_id == -1:
+        raise HTTPException(status_code=400, detail="user_id is unknown")
+
+    return user_id
