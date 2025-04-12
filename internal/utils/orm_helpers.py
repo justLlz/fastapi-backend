@@ -1,3 +1,4 @@
+import traceback
 from typing import Any, Optional, Tuple, Type, Union
 
 from fastapi import HTTPException
@@ -165,6 +166,9 @@ class BaseBuilder:
         """
         conditions = []
         for column_name, value in kwargs.items():
+            if not isinstance(column_name, str):
+                logger.warning(f"invalid column name: {column_name}, must be str")
+                continue
             # 获取 SQLAlchemy 列对象
             column = self._model_class.get_column_or_none(column_name)
             if column is None:
@@ -227,7 +231,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self._stmt)
                 data = result.scalars().all()
             except Exception as e:
-                logger.error(f"{self._model_class.__name__} scalars_all: {repr(e)}")
+                logger.error(f"{self._model_class.__name__} scalars_all: {traceback.format_exc()}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return [i for i in data]
 
@@ -353,11 +357,10 @@ class UpdateBuilder(BaseBuilder):
             return self
 
         for column_name, value in kwargs.items():
-            column = self._model_class.get_column_or_none(column_name)
-            if column_name is None:
+            if not self._model_class.has_column(column_name):
                 continue
 
-            self.update_dict[column] = value
+            self.update_dict[column_name] = value
 
         return self
 
