@@ -20,8 +20,8 @@ class Sort:
 
 class BaseBuilder:
     def __init__(self, base_model: Type[MixinModel]):
-        self.model = base_model
-        self.stmt: Select | Delete | Update | None = None
+        self._model = base_model
+        self._stmt: Select | Delete | Update | None = None
 
     # 单独的操作符方法
     def eq(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
@@ -78,25 +78,25 @@ class BaseBuilder:
         """
         if not conditions:
             return self
-        self.stmt = self.stmt.where(or_(*conditions))
+        self._stmt = self._stmt.where(or_(*conditions))
         return self
 
     def distinct(self) -> "BaseBuilder":
-        self.stmt = self.stmt.distinct()
+        self._stmt = self._stmt.distinct()
         return self
 
     def _get_column_or_none(self, column_name: str) -> InstrumentedAttribute | None:
-        if column_name not in self.model.__table__.columns:
+        if column_name not in self._model.__table__.columns:
             return None
-        return getattr(self.model, column_name)
+        return getattr(self._model, column_name)
 
     def _get_column_or_raise(self, column_name: str) -> InstrumentedAttribute:
-        if column_name not in self.model.__table__.columns:
+        if column_name not in self._model.__table__.columns:
             raise HTTPException(
                 HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"{column_name} is not a real table column of {self.model.__name__}",
+                detail=f"{column_name} is not a real table column of {self._model.__name__}",
             )
-        return getattr(self.model, column_name)
+        return getattr(self._model, column_name)
 
     @staticmethod
     def _parse_operator(column: InstrumentedAttribute, operator: str, value: Any) -> ColumnElement:
@@ -143,7 +143,7 @@ class BaseBuilder:
         filters = [MyModel.id == 1, MyModel.name == "Alice"]
         builder.where_v1(*filters)
         """
-        self.stmt = self.stmt.where(*conditions)
+        self._stmt = self._stmt.where(*conditions)
         return self
 
     def where_by(self, **kwargs) -> "BaseBuilder":
@@ -169,14 +169,14 @@ class BaseBuilder:
 
         # 将所有条件用 AND 连接
         if conditions:
-            self.stmt = self.stmt.where(*conditions)
+            self._stmt = self._stmt.where(*conditions)
         return self
 
 
 class QueryBuilder(BaseBuilder):
     def __init__(self, model: Type[MixinModel]):
         super().__init__(model)
-        self.stmt: Select = select(self.model).where(model.deleted_at.is_(None))
+        self.stmt: Select = select(self._model).where(model.deleted_at.is_(None))
 
     async def scalars_all(self) -> list[MixinModelType]:
         async with get_session() as sess:
@@ -184,7 +184,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalars().all()
             except Exception as e:
-                logger.error(f"{self.model.__name__} scalars_all: {repr(e)}")
+                logger.error(f"{self._model.__name__} scalars_all: {repr(e)}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return [i for i in data]
 
@@ -194,7 +194,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalar_one_or_none()
             except Exception as e:
-                logger.error(f"{self.model.__name__} scalar_one_or_none: {repr(e)}")
+                logger.error(f"{self._model.__name__} scalar_one_or_none: {repr(e)}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return data
 
@@ -204,7 +204,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalars().first()
             except Exception as e:
-                logger.error(f"{self.model.__name__} scalars_first: {repr(e)}")
+                logger.error(f"{self._model.__name__} scalars_first: {repr(e)}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return data
 
@@ -231,7 +231,7 @@ class QueryBuilder(BaseBuilder):
 class CountBuilder(BaseBuilder):
     def __init__(self, base_model: Type[MixinModel], column: InstrumentedAttribute = None):
         super().__init__(base_model)
-        column = self.model.id if column is None else column
+        column = self._model.id if column is None else column
         self.stmt: Select = select(func.count(column)).where(base_model.deleted_at.is_(None))
 
     async def count(self) -> int:
@@ -240,7 +240,7 @@ class CountBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalar()
             except Exception as e:
-                logger.error(f"{self.model.__name__} count error: {repr(e)}")
+                logger.error(f"{self._model.__name__} count error: {repr(e)}")
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
         return data
 
@@ -250,10 +250,10 @@ class UpdateBuilder(BaseBuilder):
         super().__init__(base_model if isinstance(base_model, type) else base_model.__class__)
         # 判断 base_model 是否为类，如果是类则创建不带条件的更新语句
         if isinstance(base_model, type):
-            self.stmt: Update = update(self.model)
+            self.stmt: Update = update(self._model)
         else:
             # 如果是实例，设置 where 条件以匹配该实例的 id
-            self.stmt: Update = update(self.model).where(self.model.id == base_model.id)
+            self.stmt: Update = update(self._model).where(self._model.id == base_model.id)
 
         self.update_dict = {}
 
@@ -261,7 +261,7 @@ class UpdateBuilder(BaseBuilder):
         if not kwargs:
             return self
 
-        model_columns = self.model.__mapper__.c.keys()
+        model_columns = self._model.__mapper__.c.keys()
         for col, value in kwargs.items():
             if col in model_columns:
                 self.update_dict[col] = value
@@ -288,5 +288,5 @@ class UpdateBuilder(BaseBuilder):
                 await sess.execute(self.stmt.execution_options(synchronize_session=False))
                 await sess.commit()
             except Exception as e:
-                logger.error(f"{self.model.__name__}: {repr(e)}")
+                logger.error(f"{self._model.__name__}: {repr(e)}")
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
