@@ -1,7 +1,8 @@
 from typing import Any, Optional, Tuple, Type, Union
 
 from fastapi import HTTPException
-from sqlalchemy import ColumnElement, ColumnExpressionArgument, Select, asc, desc, func, or_, select, update
+from sqlalchemy import ColumnElement, ColumnExpressionArgument, Delete, Select, Update, asc, desc, func, or_, select, \
+    update
 from sqlalchemy.orm import InstrumentedAttribute
 from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
@@ -20,7 +21,7 @@ class Sort:
 class BaseBuilder:
     def __init__(self, base_model: Type[MixinModel]):
         self.model = base_model
-        self.stmt: Select = Select()
+        self.stmt: Select | Delete | Update | None = None
 
     # 单独的操作符方法
     def eq(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
@@ -84,14 +85,18 @@ class BaseBuilder:
         self.stmt = self.stmt.distinct()
         return self
 
-    def _get_column(self, column_name: str) -> InstrumentedAttribute:
-        column = getattr(self.model, column_name, None)
-        if column is None:
+    def _get_column_or_none(self, column_name: str) -> InstrumentedAttribute | None:
+        if column_name not in self.model.__table__.columns:
+            return None
+        return getattr(self.model, column_name)
+
+    def _get_column_or_raise(self, column_name: str) -> InstrumentedAttribute:
+        if column_name not in self.model.__table__.columns:
             raise HTTPException(
                 HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Column {column_name} not found in model {self.model.__name__}",
+                detail=f"{column_name} is not a real table column of {self.model.__name__}",
             )
-        return column
+        return getattr(self.model, column_name)
 
     @staticmethod
     def _parse_operator(column: InstrumentedAttribute, operator: str, value: Any) -> ColumnElement:
@@ -152,7 +157,7 @@ class BaseBuilder:
         conditions = []
         for column_name, value in kwargs.items():
             # 获取 SQLAlchemy 列对象
-            column = self._get_column(column_name)
+            column = self._get_column_or_none(column_name)
             # 如果值是字典（支持多个操作符）
             if isinstance(value, dict):
                 for operator, val in value.items():
@@ -224,10 +229,10 @@ class QueryBuilder(BaseBuilder):
 
 
 class CountBuilder(BaseBuilder):
-    def __init__(self, base_model: Type[MixinModel], col: InstrumentedAttribute = None):
+    def __init__(self, base_model: Type[MixinModel], column: InstrumentedAttribute = None):
         super().__init__(base_model)
-        col = self.model.id if col is None else col
-        self.stmt = select(func.count(col)).where(base_model.deleted_at.is_(None))
+        column = self.model.id if column is None else column
+        self.stmt: Select = select(func.count(column)).where(base_model.deleted_at.is_(None))
 
     async def count(self) -> int:
         async with get_session() as sess:
@@ -235,7 +240,7 @@ class CountBuilder(BaseBuilder):
                 result = await sess.execute(self.stmt)
                 data = result.scalar()
             except Exception as e:
-                logger.error(f"{self.model.__name__}: {repr(e)}")
+                logger.error(f"{self.model.__name__} count error: {repr(e)}")
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
         return data
 
@@ -245,10 +250,10 @@ class UpdateBuilder(BaseBuilder):
         super().__init__(base_model if isinstance(base_model, type) else base_model.__class__)
         # 判断 base_model 是否为类，如果是类则创建不带条件的更新语句
         if isinstance(base_model, type):
-            self.stmt = update(self.model)
+            self.stmt: Update = update(self.model)
         else:
             # 如果是实例，设置 where 条件以匹配该实例的 id
-            self.stmt = update(self.model).where(self.model.id == base_model.id)
+            self.stmt: Update = update(self.model).where(self.model.id == base_model.id)
 
         self.update_dict = {}
 
