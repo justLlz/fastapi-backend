@@ -70,3 +70,6 @@ def init_logger(env: str = "dev") -> loguru.logger:
 
 
 logger = init_logger(SYS_ENV)
+"""
+logger.error(f"error message, err: {traceback.format_exc()}")
+"""
