@@ -119,54 +119,54 @@ async def test_dao():
 
     try:
         # 1. 验证基础查询
-        created_user = await QueryBuilder(User).eq("id", test_user.id).get_or_exec()
+        created_user = await QueryBuilder(User).eq(User.id, test_user.id).get_or_exec()
         assert created_user.id == test_user.id
 
         # 2. 测试各种查询操作符
         # eq
-        user = await QueryBuilder(User).eq("id", test_user.id).get_or_none()
+        user = await QueryBuilder(User).eq(User.id, test_user.id).get_or_none()
         assert user.id == test_user.id
 
         # ne
-        ne_users = await QueryBuilder(User).ne("id", test_user.id).scalars_all()
+        ne_users = await QueryBuilder(User).ne(User.id, test_user.id).scalars_all()
         assert all(u.id != test_user.id for u in ne_users)
 
         # gt
-        gt_users = await QueryBuilder(User).gt("id", test_user.id).scalars_all()
+        gt_users = await QueryBuilder(User).gt(User.id, test_user.id).scalars_all()
         assert all(u.id > test_user.id for u in gt_users)
 
         # lt
-        lt_users = await QueryBuilder(User).lt("id", test_user.id).scalars_all()
+        lt_users = await QueryBuilder(User).lt(User.id, test_user.id).scalars_all()
         assert all(u.id < test_user.id for u in lt_users)
 
         # ge
-        ge_users = await QueryBuilder(User).ge("id", test_user.id).scalars_all()
+        ge_users = await QueryBuilder(User).ge(User.id, test_user.id).scalars_all()
         assert all(u.id >= test_user.id for u in ge_users)
 
         # le
-        le_users = await QueryBuilder(User).le("id", test_user.id).scalars_all()
+        le_users = await QueryBuilder(User).le(User.id, test_user.id).scalars_all()
         assert all(u.id <= test_user.id for u in le_users)
 
         # in_ 测试
-        in_users = await QueryBuilder(User).in_("id", [test_user.id]).scalars_all()
+        in_users = await QueryBuilder(User).in_(User.id, [test_user.id]).scalars_all()
         assert len(in_users) == 1
 
         # like 测试
-        like_users = await QueryBuilder(User).like("username", "%lilinze%").scalars_all()
+        like_users = await QueryBuilder(User).like(User.username, "%lilinze%").scalars_all()
         assert all("lilinze" in u.username for u in like_users)
 
         # is_null 测试（确保测试时deleted_at为null）
-        null_users = await QueryBuilder(User).is_null("deleted_at").scalars_all()
+        null_users = await QueryBuilder(User).is_null(User.deleted_at).scalars_all()
         assert any(u.deleted_at is None for u in null_users)
 
         # 4. 计数测试
-        count = await CountBuilder(User).ge("id", 0).count()
+        count = await CountBuilder(User).ge(User.id, 0).count()
         assert count >= 1
 
         # AND 组合
         and_users = await (QueryBuilder(User).
-                           eq("username", test_user.username).
-                           eq("account", test_user.account).get_or_exec())
+                           eq(User.username, test_user.username).
+                           eq(User.account, test_user.account).get_or_exec())
         assert and_users.username == test_user.username, and_users.account == test_user.account
 
         # where 组合
@@ -177,7 +177,7 @@ async def test_dao():
         assert where_user.username == test_user.username, where_user.account == test_user.account
 
         # where_by 组合
-        where_by_query_dict = {"username": test_user.username, "account": test_user.account}
+        where_by_query_dict = {User.username: test_user.username, User.account: test_user.account}
         where_by_users = await QueryBuilder(User).where_by(
             **where_by_query_dict
         ).get_or_exec()
@@ -192,7 +192,7 @@ async def test_dao():
 
         # BETWEEN 组合
         between_users = await QueryBuilder(User).between(
-            "id",
+            User.id,
             (test_user.id - 1, test_user.id + 1)
         ).scalars_all()
         assert len(between_users) >= 1
@@ -200,16 +200,16 @@ async def test_dao():
         # 3. 更新操作测试
         # 显式使用新查询器避免缓存问题
         updated_name = f"updated_name_{unique_hex}"
-        await UpdateBuilder(User).eq("id", test_user.id).update(username=updated_name).execute()
+        await UpdateBuilder(model_class=User).eq(User.id, test_user.id).update(username=updated_name).execute()
         # 重新查询验证更新
-        updated_user = await QueryBuilder(User).eq("id", test_user.id).get_or_exec()
+        updated_user = await QueryBuilder(User).eq(User.id, test_user.id).get_or_exec()
         assert updated_user.username == updated_name
 
         # 显式使用新查询器避免缓存问题
         updated_name = f"updated_name_{unique_hex}"
-        await UpdateBuilder(User).eq("id", test_user.id).update_by({"username": updated_name}).execute()
+        await UpdateBuilder(model_class=User).eq(User.id, test_user.id).update(**{User.username: updated_name}).execute()
         # 重新查询验证更新
-        updated_user = await QueryBuilder(User).eq("id", test_user.id).get_or_exec()
+        updated_user = await QueryBuilder(User).eq(User.id, test_user.id).get_or_exec()
         assert updated_user.username == updated_name
     except Exception as e:
         logger.error(f"test_dao error: {e}")

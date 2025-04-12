@@ -20,9 +20,25 @@ class Sort:
 
 
 class BaseBuilder:
-    def __init__(self, base_model: Type[ModelMixin]):
-        self._model = base_model
-        self._stmt: Select | Delete | Update | None = None
+    """SQL查询构建器基类，提供模型类和方法的基本结构"""
+
+    __slots__ = ('_model_class', '_stmt')  # 优化内存使用
+
+    def __init__(self, model_class: Type[MixinModelType]) -> None:
+        """
+        初始化查询构建器
+
+        Args:
+            model_class: 要操作的模型类，必须是 ModelMixin 的子类
+
+        Raises:
+            TypeError: 如果 model_class 不是有效的模型类
+        """
+        if not isinstance(model_class, type) or not issubclass(model_class, ModelMixin):
+            raise TypeError(f"model_class must be a subclass of ModelMixin, and actually gets: {type(model_class)}")
+
+        self._model_class: Type[MixinModelType] = model_class
+        self._stmt: Union[Select, Delete, Update, None] = None
 
     # 单独的操作符方法
     def eq(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
@@ -120,6 +136,11 @@ class BaseBuilder:
                 detail=f"Unsupported operator: {operator}",
             )
 
+    def _apply_soft_delete(self) -> None:
+        """安全地添加软删除过滤条件"""
+        deleted_column = self._model_class.get_column_or_none(self._model_class.deleted_at_column_name())
+        self._stmt = self._stmt.where(deleted_column.is_(None))
+
     def where(self, *conditions: ColumnExpressionArgument[bool]) -> "BaseBuilder":
         """
         example:
@@ -145,7 +166,10 @@ class BaseBuilder:
         conditions = []
         for column_name, value in kwargs.items():
             # 获取 SQLAlchemy 列对象
-            column = self._model.get_column_or_none(column_name)
+            column = self._model_class.get_column_or_none(column_name)
+            if column is None:
+                continue
+
             # 如果值是字典（支持多个操作符）
             if isinstance(value, dict):
                 for operator, val in value.items():
@@ -162,9 +186,36 @@ class BaseBuilder:
 
 
 class QueryBuilder(BaseBuilder):
-    def __init__(self, model: Type[ModelMixin]):
-        super().__init__(model)
-        self._stmt: Select = select(self._model).where(model.deleted_at.is_(None))
+    def __init__(
+            self,
+            model_class: Type[ModelMixin],
+            *,
+            include_deleted: bool = False,
+            initial_where: Optional[ColumnElement] = None
+    ):
+        """
+        查询构建器基础类
+
+        Args:
+            model_class: 要查询的模型类
+            include_deleted: 是否包含已软删除的记录 (默认False)
+            initial_where: 初始WHERE条件 (可选)
+
+        Raises:
+            ValueError: 如果模型类无效
+        """
+        super().__init__(model_class)
+
+        # 基础查询语句
+        self._stmt: Select = select(self._model_class)
+
+        # 默认过滤已删除记录
+        if not include_deleted and self._model_class.has_deleted_at_column:
+            self._apply_soft_delete()
+
+        # 添加初始WHERE条件
+        if initial_where is not None:
+            self._stmt = self._stmt.where(initial_where)
 
     @property
     def select_stmt(self) -> Select:
@@ -176,7 +227,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self._stmt)
                 data = result.scalars().all()
             except Exception as e:
-                logger.error(f"{self._model.__name__} scalars_all: {repr(e)}")
+                logger.error(f"{self._model_class.__name__} scalars_all: {repr(e)}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return [i for i in data]
 
@@ -186,7 +237,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self._stmt)
                 data = result.scalar_one_or_none()
             except Exception as e:
-                logger.error(f"{self._model.__name__} scalar_one_or_none: {repr(e)}")
+                logger.error(f"{self._model_class.__name__} scalar_one_or_none: {repr(e)}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return data
 
@@ -196,7 +247,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self._stmt)
                 data = result.scalars().first()
             except Exception as e:
-                logger.error(f"{self._model.__name__} scalars_first: {repr(e)}")
+                logger.error(f"{self._model_class.__name__} scalars_first: {repr(e)}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return data
 
@@ -221,10 +272,32 @@ class QueryBuilder(BaseBuilder):
 
 
 class CountBuilder(BaseBuilder):
-    def __init__(self, base_model: Type[ModelMixin], column: InstrumentedAttribute = None):
-        super().__init__(base_model)
-        column = self._model.id if column is None else column
-        self._stmt: Select = select(func.count(column)).where(base_model.deleted_at.is_(None))
+    def __init__(
+            self,
+            model_class: Type[ModelMixin],
+            count_column: Optional[InstrumentedAttribute] = None,
+            *,
+            include_deleted: bool = False
+    ):
+        """
+        计数查询构建器
+
+        参数:
+            model_class: 要计数的模型类
+            count_column: 要计数的列（默认为主键ID）
+            include_deleted: 是否包含已软删除的记录（默认False）
+        """
+        super().__init__(model_class)
+
+        # 设置计数列（默认为主键）
+        self._count_column = count_column if count_column is not None else self._model_class.id
+
+        # 构建基础查询
+        self._stmt: Select = select(func.count(self._count_column))
+
+        # 默认过滤已删除记录
+        if not include_deleted and self._model_class.has_deleted_at_column():
+            self._apply_soft_delete()
 
     @property
     def count_stmt(self) -> Select:
@@ -236,29 +309,51 @@ class CountBuilder(BaseBuilder):
                 exec_result = await sess.execute(self._stmt)
                 data = exec_result.scalar()
             except Exception as e:
-                logger.error(f"{self._model.__name__} count error: {repr(e)}")
+                logger.error(f"{self._model_class.__name__} count error: {repr(e)}")
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
         return data
 
 
 class UpdateBuilder(BaseBuilder):
-    def __init__(self, base_model: Union[Type[ModelMixin], ModelMixin]):
-        super().__init__(base_model if isinstance(base_model, type) else base_model.__class__)
-        # 判断 base_model 是否为类，如果是类则创建不带条件的更新语句
-        if isinstance(base_model, type):
-            self._stmt: Update = update(self._model)
-        else:
-            # 如果是实例，设置 where 条件以匹配该实例的 id
-            self._stmt: Update = update(self._model).where(self._model.id == base_model.id)
+    def __init__(
+            self,
+            *,
+            model_class: Optional[Type[ModelMixin]] = None,
+            model_instance: Optional[ModelMixin] = None
+    ):
+        """
+        更新构建器初始化
 
+        参数:
+            model_class: 要更新的模型类（用于批量更新）
+            model_instance: 要更新的模型实例（用于单条记录更新）
+
+        注意:
+            - 必须且只能提供 model_class 或 model_instance 中的一个
+            - 如果提供 model_instance，会自动添加 WHERE id=instance.id 条件
+        """
+        # 参数校验
+        if (model_class is None) == (model_instance is None):
+            raise ValueError("must and can only provide one of model_class or model_instance")
+
+        # 调用父类初始化
+        super().__init__(model_class if model_class is not None else model_instance.__class__)
+
+        # 初始化更新语句
+        self._stmt: Update = update(self._model_class)
         self.update_dict = {}
+
+        # 如果是实例更新，添加ID条件
+        if model_instance is not None:
+            model_id_column: InstrumentedAttribute = self._model_class.get_column_or_none("id")
+            self._stmt = self._stmt.where(model_id_column == model_instance.id)
 
     def update(self, **kwargs) -> "UpdateBuilder":
         if not kwargs:
             return self
 
         for column_name, value in kwargs.items():
-            column = self._model.get_column_or_none(column_name)
+            column = self._model_class.get_column_or_none(column_name)
             if column_name is None:
                 continue
 
@@ -283,11 +378,11 @@ class UpdateBuilder(BaseBuilder):
         current_time = utc_datetime_with_no_tz()
 
         # 获取模型定义的更新时间字段名
-        updated_at_column_name = self._model.updated_at_column_name()
+        updated_at_column_name = self._model_class.updated_at_column_name()
 
         # 特殊处理：如果更新中包含软删除字段（逻辑删除）
         # 则将软删除时间同步到更新时间字段（保持时间一致）
-        if deleted_at_column_name := self._model.deleted_at_column_name() in self.update_dict:
+        if deleted_at_column_name := self._model_class.deleted_at_column_name() in self.update_dict:
             self.update_dict.setdefault(
                 updated_at_column_name,
                 self.update_dict[deleted_at_column_name]
@@ -297,9 +392,9 @@ class UpdateBuilder(BaseBuilder):
         self.update_dict.setdefault(updated_at_column_name, current_time)
 
         # 如果模型支持更新人字段，自动设置当前用户ID
-        if self._model.has_updater_id_column():
+        if self._model_class.has_updater_id_column():
             self.update_dict.setdefault(
-                self._model.updater_id_column_name(),
+                self._model_class.updater_id_column_name(),
                 get_user_id_context_var()  # 从上下文获取当前用户ID
             )
 
@@ -310,7 +405,7 @@ class UpdateBuilder(BaseBuilder):
 
     async def execute(self):
         if not self.update_dict:
-            logger.warning(f"{self._model.__name__} no update data")
+            logger.warning(f"{self._model_class.__name__} no update data")
             return
 
         async with get_session() as sess:
@@ -318,5 +413,5 @@ class UpdateBuilder(BaseBuilder):
                 await sess.execute(self.update_stmt.execution_options(synchronize_session=False))
                 await sess.commit()
             except Exception as e:
-                logger.error(f"{self._model.__name__}: {repr(e)}")
+                logger.error(f"{self._model_class.__name__}: {repr(e)}")
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e

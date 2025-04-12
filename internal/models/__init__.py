@@ -76,6 +76,11 @@ class ModelMixin(Base):
         return "deleted_at"
 
     @classmethod
+    def has_deleted_at_column(cls) -> bool:
+        """判断是否有删除时间字段"""
+        return cls.has_column(cls.deleted_at_column_name())
+
+    @classmethod
     def has_creator_column(cls) -> bool:
         """判断是否有创建人字段"""
         return cls.has_column(cls.creator_id_column_name())
@@ -97,6 +102,7 @@ class ModelMixin(Base):
     @classmethod
     def get_column_or_none(cls, column_name: str) -> InstrumentedAttribute | None:
         if column_name not in cls.__table__.columns:
+            logger.warning(f"{column_name} is not a real table column of {cls.__name__}")
             return None
         return getattr(cls, column_name)
 
