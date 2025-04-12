@@ -86,19 +86,6 @@ class BaseBuilder:
         self._stmt = self._stmt.distinct()
         return self
 
-    def _get_column_or_none(self, column_name: str) -> InstrumentedAttribute | None:
-        if column_name not in self._model.__table__.columns:
-            return None
-        return getattr(self._model, column_name)
-
-    def _get_column_or_raise(self, column_name: str) -> InstrumentedAttribute:
-        if column_name not in self._model.__table__.columns:
-            raise HTTPException(
-                HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"{column_name} is not a real table column of {self._model.__name__}",
-            )
-        return getattr(self._model, column_name)
-
     @staticmethod
     def _parse_operator(column: InstrumentedAttribute, operator: str, value: Any) -> ColumnElement:
         """解析操作符并生成条件"""
@@ -158,7 +145,7 @@ class BaseBuilder:
         conditions = []
         for column_name, value in kwargs.items():
             # 获取 SQLAlchemy 列对象
-            column = self._get_column_or_none(column_name)
+            column = self._model.get_column_or_none(column_name)
             # 如果值是字典（支持多个操作符）
             if isinstance(value, dict):
                 for operator, val in value.items():
@@ -271,7 +258,7 @@ class UpdateBuilder(BaseBuilder):
             return self
 
         for column_name, value in kwargs.items():
-            column = self._get_column_or_none(column_name)
+            column = self._model.get_column_or_none(column_name)
             if column_name is None:
                 continue
 
@@ -281,20 +268,44 @@ class UpdateBuilder(BaseBuilder):
 
     @property
     def update_stmt(self):
+        """生成更新数据库的 SQL 语句（带属性访问器）
+
+        1. 如果没有更新字段，直接返回原语句
+        2. 自动处理更新时间字段（线程安全）
+        3. 如果涉及软删除字段，同步更新时间
+        4. 自动设置更新人字段（如果模型支持）
+        """
+        # 如果没有需要更新的字段，直接返回原始语句
         if not self.update_dict:
             return self._stmt
 
-        # 时间字段处理（线程安全版）
+        # 获取当前UTC时间（无时区信息，线程安全）
         current_time = utc_datetime_with_no_tz()
-        if "deleted_at" in self.update_dict:
-            self.update_dict.setdefault("updated_at", self.update_dict["deleted_at"])
 
-        self.update_dict.setdefault("updated_at", current_time)
+        # 获取模型定义的更新时间字段名
+        updated_at_column_name = self._model.updated_at_column_name()
 
-        if self._get_column_or_none("updater"):
-            self.update_dict.setdefault("updater", get_user_id_context_var())
+        # 特殊处理：如果更新中包含软删除字段（逻辑删除）
+        # 则将软删除时间同步到更新时间字段（保持时间一致）
+        if deleted_at_column_name := self._model.deleted_at_column_name() in self.update_dict:
+            self.update_dict.setdefault(
+                updated_at_column_name,
+                self.update_dict[deleted_at_column_name]
+            )
 
+        # 设置/更新 更新时间字段（如果未设置）
+        self.update_dict.setdefault(updated_at_column_name, current_time)
+
+        # 如果模型支持更新人字段，自动设置当前用户ID
+        if self._model.has_updater_id_column():
+            self.update_dict.setdefault(
+                self._model.updater_id_column_name(),
+                get_user_id_context_var()  # 从上下文获取当前用户ID
+            )
+
+        # 将更新字典应用到SQL语句
         self._stmt = self._stmt.values(**self.update_dict)
+
         return self._stmt
 
     async def execute(self):

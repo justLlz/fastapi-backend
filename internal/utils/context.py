@@ -2,6 +2,8 @@ from contextvars import ContextVar
 
 from fastapi import HTTPException, Request
 
+from pkg.logger_helper import logger
+
 
 def set_user_id(request: Request, user_id: int):
     """
@@ -56,7 +58,8 @@ def get_user_id_context_var() -> int:
     try:
         user_id = user_id_context_var.get()
     except LookupError:
-        raise HTTPException(status_code=400, detail="user_id is not set")
+        logger.warning("user_id is not set")
+        return -1
 
     if user_id == -1:
         raise HTTPException(status_code=400, detail="user_id is unknown")

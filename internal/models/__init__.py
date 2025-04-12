@@ -1,12 +1,13 @@
 """该目录主要用于数据库模型"""
 from datetime import datetime
 
-import pytz
 from fastapi import HTTPException
 from sqlalchemy import BigInteger, Column, DateTime
+from sqlalchemy.orm import InstrumentedAttribute
 from starlette import status
 
 from internal.infra.db import Base, get_session
+from internal.utils.context import get_user_id_context_var
 from pkg import datetime_to_string, utc_datetime
 from pkg.logger_helper import logger
 from pkg.snow_flake import generate_snowflake_id
@@ -34,43 +35,76 @@ class ModelMixin(Base):
     def create(cls, **kwargs) -> "ModelMixin":
         cur_datetime = utc_datetime()
         instance = cls(id=generate_snowflake_id(), created_at=cur_datetime, updated_at=cur_datetime)
-        instance._populate(kwargs)
+
+        if cls.has_creator_column():
+            instance.creator_id = get_user_id_context_var()
+
+        instance._populate(**kwargs)
         return instance
 
-    def compare_diff_fields(self, data: dict) -> dict[str: [str]]:
-        diff = {}
-
-        model_columns = self.__mapper__.c.keys()
-        for col, value in data.items():
-            if col not in model_columns:
+    def _populate(self, **kwargs):
+        for column_name, value in kwargs.items():
+            if not self.has_column(column_name):
                 continue
-
-            old_val = getattr(self, col)
-            if isinstance(old_val, datetime):
-                old_val = old_val.replace(tzinfo=pytz.UTC)
-
-            if old_val != value:
-                diff[col] = [old_val, value]
-        return diff
-
-    def _populate(self, data: dict):
-        cols = self.__mapper__.c.keys()
-        for col, value in data.items():
-            if col in cols:
-                setattr(self, col, value)
+            setattr(self, column_name, value)
 
     def to_dict(self) -> dict:
-        d = {}
-        for col in self.__mapper__.c.keys():
-            val = getattr(self, col)
+        result = {}
+        for column_name in self.get_column_names():
+            val = getattr(self, column_name)
+
             if isinstance(val, datetime):
                 val = datetime_to_string(val)
-            d[col] = val
-        return d
 
-    def mixin_check_required_fields(self, fields: list[str]) -> (str, bool):
-        for field in fields:
-            val = getattr(self, field)
-            if not val:
-                return field, False
-        return "", True
+            result[column_name] = val
+        return result
+
+    @staticmethod
+    def updater_id_column_name() -> str:
+        return "updater_id"
+
+    @staticmethod
+    def creator_id_column_name() -> str:
+        return "creator_id"
+
+    @staticmethod
+    def updated_at_column_name() -> str:
+        return "updated_at"
+
+    @staticmethod
+    def deleted_at_column_name() -> str:
+        return "deleted_at"
+
+    @classmethod
+    def has_creator_column(cls) -> bool:
+        """判断是否有创建人字段"""
+        return cls.has_column(cls.creator_id_column_name())
+
+    @classmethod
+    def has_updater_id_column(cls) -> bool:
+        """判断是否有更新人字段"""
+        return cls.has_column(cls.updater_id_column_name())
+
+    @classmethod
+    def has_column(cls, column_name: str) -> bool:
+        """判断是否为真实数据库字段"""
+        return column_name in cls.__table__.columns
+
+    @classmethod
+    def get_column_names(cls) -> list[str]:
+        return list(cls.__table__.columns.keys())
+
+    @classmethod
+    def get_column_or_none(cls, column_name: str) -> InstrumentedAttribute | None:
+        if column_name not in cls.__table__.columns:
+            return None
+        return getattr(cls, column_name)
+
+    @classmethod
+    def get_column_or_raise(cls, column_name: str) -> InstrumentedAttribute:
+        if column_name not in cls.__table__.columns:
+            raise HTTPException(
+                400,
+                detail=f"{column_name} is not a real table column of {cls.__name__}",
+            )
+        return getattr(cls, column_name)
