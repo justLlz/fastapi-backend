@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException, RequestValidationError
 
 from internal.config.setting import setting
-from pkg import colorprint, get_sys_env_var
+from pkg import SYS_ENV, colorprint
 from pkg.resp_helper import response_factory
 
 
@@ -82,9 +82,8 @@ def register_middleware(app: FastAPI):
 async def lifespan(_app: FastAPI):
     colorprint.green("Init lifespan...")
     # 检查环境变量
-    env_var = get_sys_env_var()
-    if env_var not in ["local", "dev", "test", "prod"]:
-        raise Exception(f"Invalid ENV: {env_var}")
+    if SYS_ENV not in ["local", "dev", "test", "prod"]:
+        raise Exception(f"Invalid ENV: {SYS_ENV}")
 
     colorprint.green("Check completed, Application will start.")
     # 进入应用生命周期

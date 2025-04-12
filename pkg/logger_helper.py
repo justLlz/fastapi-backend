@@ -1,10 +1,11 @@
 import logging
 import os
 import sys
-import loguru
 from pathlib import Path
 
-from pkg import colorprint, get_sys_env_var, BASE_DIR
+import loguru
+
+from pkg import BASE_DIR, SYS_ENV, colorprint
 
 
 class LogConfig:
@@ -68,4 +69,4 @@ def init_logger(env: str = "dev") -> loguru.logger:
     return l
 
 
-logger = init_logger(get_sys_env_var())
+logger = init_logger(SYS_ENV)
