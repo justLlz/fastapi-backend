@@ -8,6 +8,7 @@ from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
 from internal.infra.db import get_session
 from internal.models import ModelMixin
+from internal.utils.context import get_user_id_context_var
 from internal.utils.mixin_type import MixinModelType
 from pkg import utc_datetime_with_no_tz
 from pkg.logger_helper import logger
@@ -287,10 +288,13 @@ class UpdateBuilder(BaseBuilder):
         current_time = utc_datetime_with_no_tz()
         if "deleted_at" in self.update_dict:
             self.update_dict.setdefault("updated_at", self.update_dict["deleted_at"])
+
         self.update_dict.setdefault("updated_at", current_time)
 
-        self._stmt = self._stmt.values(**self.update_dict)
+        if self._get_column_or_none("updater"):
+            self.update_dict.setdefault("updater", get_user_id_context_var())
 
+        self._stmt = self._stmt.values(**self.update_dict)
         return self._stmt
 
     async def execute(self):
