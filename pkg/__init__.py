@@ -108,8 +108,12 @@ def get_utc_timestamp() -> int:
     return int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
 
 
-def get_utc_datetime() -> datetime:
-    return datetime.datetime.now(datetime.timezone.utc)
+def utc_datetime() -> datetime:
+    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
+
+
+def utc_datetime_with_no_tz() -> datetime:
+    return datetime.datetime.now().replace(tzinfo=None, microsecond=0)
 
 
 def get_sys_env_var() -> str:

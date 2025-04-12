@@ -7,7 +7,7 @@ from sqlalchemy import BigInteger, Column, DateTime
 from starlette import status
 
 from internal.infra.db import Base, get_session
-from pkg import datetime_to_string, get_utc_datetime
+from pkg import datetime_to_string, utc_datetime
 from pkg.logger_helper import logger
 from pkg.snow_flake import generate_snowflake_id
 
@@ -32,7 +32,7 @@ class ModelMixin(Base):
 
     @classmethod
     def create(cls, **kwargs) -> "ModelMixin":
-        cur_datetime = get_utc_datetime()
+        cur_datetime = utc_datetime()
         instance = cls(id=generate_snowflake_id(), created_at=cur_datetime, updated_at=cur_datetime)
         instance._populate(kwargs)
         return instance

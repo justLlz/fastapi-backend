@@ -1,15 +1,15 @@
 from typing import Any, Optional, Tuple, Type, Union
 
 from fastapi import HTTPException
-from sqlalchemy import ColumnElement, ColumnExpressionArgument, Delete, Select, Update, asc, desc, func, or_, select, \
-    update
+from sqlalchemy import (ColumnElement, ColumnExpressionArgument,
+                        Delete, Select, Update, asc, desc, func, or_, select, update)
 from sqlalchemy.orm import InstrumentedAttribute
 from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
 from internal.infra.db import get_session
 from internal.models import ModelMixin
 from internal.utils.mixin_type import MixinModelType
-from pkg import get_utc_datetime
+from pkg import utc_datetime_with_no_tz
 from pkg.logger_helper import logger
 
 
@@ -176,12 +176,16 @@ class BaseBuilder:
 class QueryBuilder(BaseBuilder):
     def __init__(self, model: Type[ModelMixin]):
         super().__init__(model)
-        self.stmt: Select = select(self._model).where(model.deleted_at.is_(None))
+        self._stmt: Select = select(self._model).where(model.deleted_at.is_(None))
+
+    @property
+    def select_stmt(self) -> Select:
+        return self._stmt
 
     async def scalars_all(self) -> list[MixinModelType]:
         async with get_session() as sess:
             try:
-                result = await sess.execute(self.stmt)
+                result = await sess.execute(self._stmt)
                 data = result.scalars().all()
             except Exception as e:
                 logger.error(f"{self._model.__name__} scalars_all: {repr(e)}")
@@ -191,7 +195,7 @@ class QueryBuilder(BaseBuilder):
     async def scalar_one_or_none(self) -> Optional[MixinModelType]:
         async with get_session() as sess:
             try:
-                result = await sess.execute(self.stmt)
+                result = await sess.execute(self._stmt)
                 data = result.scalar_one_or_none()
             except Exception as e:
                 logger.error(f"{self._model.__name__} scalar_one_or_none: {repr(e)}")
@@ -201,7 +205,7 @@ class QueryBuilder(BaseBuilder):
     async def scalars_first(self) -> Optional[MixinModelType]:
         async with get_session() as sess:
             try:
-                result = await sess.execute(self.stmt)
+                result = await sess.execute(self._stmt)
                 data = result.scalars().first()
             except Exception as e:
                 logger.error(f"{self._model.__name__} scalars_first: {repr(e)}")
@@ -219,12 +223,12 @@ class QueryBuilder(BaseBuilder):
         return data
 
     def order_by(self, col: InstrumentedAttribute, sort: str = Sort.DESC) -> "QueryBuilder":
-        self.stmt = self.stmt.order_by(asc(col) if sort == Sort.ASC else desc(col))
+        self._stmt = self._stmt.order_by(asc(col) if sort == Sort.ASC else desc(col))
         return self
 
     def paginate(self, page: Optional[int] = None, limit: Optional[int] = None) -> "QueryBuilder":
         if page and limit:
-            self.stmt = self.stmt.offset((page - 1) * limit).limit(limit)
+            self._stmt = self._stmt.offset((page - 1) * limit).limit(limit)
         return self
 
 
@@ -232,13 +236,17 @@ class CountBuilder(BaseBuilder):
     def __init__(self, base_model: Type[ModelMixin], column: InstrumentedAttribute = None):
         super().__init__(base_model)
         column = self._model.id if column is None else column
-        self.stmt: Select = select(func.count(column)).where(base_model.deleted_at.is_(None))
+        self._stmt: Select = select(func.count(column)).where(base_model.deleted_at.is_(None))
+
+    @property
+    def count_stmt(self) -> Select:
+        return self._stmt
 
     async def count(self) -> int:
         async with get_session() as sess:
             try:
-                result = await sess.execute(self.stmt)
-                data = result.scalar()
+                exec_result = await sess.execute(self._stmt)
+                data = exec_result.scalar()
             except Exception as e:
                 logger.error(f"{self._model.__name__} count error: {repr(e)}")
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
@@ -250,10 +258,10 @@ class UpdateBuilder(BaseBuilder):
         super().__init__(base_model if isinstance(base_model, type) else base_model.__class__)
         # 判断 base_model 是否为类，如果是类则创建不带条件的更新语句
         if isinstance(base_model, type):
-            self.stmt: Update = update(self._model)
+            self._stmt: Update = update(self._model)
         else:
             # 如果是实例，设置 where 条件以匹配该实例的 id
-            self.stmt: Update = update(self._model).where(self._model.id == base_model.id)
+            self._stmt: Update = update(self._model).where(self._model.id == base_model.id)
 
         self.update_dict = {}
 
@@ -261,31 +269,38 @@ class UpdateBuilder(BaseBuilder):
         if not kwargs:
             return self
 
-        model_columns = self._model.__mapper__.c.keys()
-        for col, value in kwargs.items():
-            if col in model_columns:
-                self.update_dict[col] = value
+        for column_name, value in kwargs.items():
+            column = self._get_column_or_none(column_name)
+            if column_name is None:
+                continue
+
+            self.update_dict[column] = value
 
         return self
 
-    def update_by(self, kwargs: dict):
-        return self.update(**kwargs)
-
-    async def execute(self):
+    @property
+    def update_stmt(self):
         if not self.update_dict:
-            return
+            return self._stmt
 
         # 时间字段处理（线程安全版）
-        current_time = get_utc_datetime()
+        current_time = utc_datetime_with_no_tz()
         if "deleted_at" in self.update_dict:
             self.update_dict.setdefault("updated_at", self.update_dict["deleted_at"])
         self.update_dict.setdefault("updated_at", current_time)
 
-        self.stmt = self.stmt.values(**self.update_dict)
+        self._stmt = self._stmt.values(**self.update_dict)
+
+        return self._stmt
+
+    async def execute(self):
+        if not self.update_dict:
+            logger.warning(f"{self._model.__name__} no update data")
+            return
 
         async with get_session() as sess:
             try:
-                await sess.execute(self.stmt.execution_options(synchronize_session=False))
+                await sess.execute(self.update_stmt.execution_options(synchronize_session=False))
                 await sess.commit()
             except Exception as e:
                 logger.error(f"{self._model.__name__}: {repr(e)}")
