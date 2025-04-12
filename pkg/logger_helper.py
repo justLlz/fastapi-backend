@@ -4,13 +4,13 @@ import sys
 import loguru
 from pathlib import Path
 
-from pkg import colorprint, get_sys_env_var, project_root_path
+from pkg import colorprint, get_sys_env_var, BASE_DIR
 
 
 class LogConfig:
     """日志配置中心"""
     LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    DIR: Path = project_root_path / "logs"
+    DIR: Path = BASE_DIR / "logs"
     FILE_NAME: str = "app_{time:YYYY-MM-DD}.log"
     ROTATION: str = os.getenv("LOG_ROTATION", "100 MB")  # 支持大小/时间轮转
     RETENTION: str = os.getenv("LOG_RETENTION", "30 days")

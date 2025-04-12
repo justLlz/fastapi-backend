@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from internal.config import BaseConfig, DevelopmentConfig, LocalConfig, ProductionConfig, TestingConfig
-from pkg import colorprint, get_sys_env_var, project_root_path
+from pkg import colorprint, get_sys_env_var, BASE_DIR
 
 
 @lru_cache
@@ -22,7 +22,7 @@ def init_setting() -> BaseConfig:
     if not config_class:
         raise Exception(f"Invalid FAST_API_ENV value: {cur_env_var}")
 
-    env_file_path = (project_root_path / "configs" / f".env.{cur_env_var}").as_posix()
+    env_file_path = (BASE_DIR / "configs" / f".env.{cur_env_var}").as_posix()
     # 检查env_file_path是否存在
     if not Path(env_file_path).exists():
         raise Exception(f"Env file not found: {env_file_path}")

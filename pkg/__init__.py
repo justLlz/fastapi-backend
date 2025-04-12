@@ -17,13 +17,17 @@ import shortuuid
 import xxhash
 
 
-def get_project_root_path() -> Path:
+def get_base_dir() -> Path:
     """
     获取项目根目录的路径。
 
     :return: 项目根目录的路径
     """
     return Path(__file__).parent.parent.absolute()
+
+
+def get_sys_env_var() -> str:
+    return str.lower(os.getenv("ENV", "unknown"))
 
 
 def json_dumps(*args, **kwargs):
@@ -114,10 +118,6 @@ def utc_datetime() -> datetime:
 
 def utc_datetime_with_no_tz() -> datetime:
     return datetime.datetime.now().replace(tzinfo=None, microsecond=0)
-
-
-def get_sys_env_var() -> str:
-    return str.lower(os.getenv("ENV", "dev"))
 
 
 # 把"2024-10-21T12:26:04+08:00"转化成utcdatetime
@@ -292,4 +292,5 @@ class ColorPrint:
 
 colorprint = ColorPrint()
 
-project_root_path: Path = get_project_root_path()
+BASE_DIR: Path = get_base_dir()
+SYS_ENV: str = get_sys_env_var()

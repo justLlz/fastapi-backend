@@ -5,7 +5,7 @@ from urllib.parse import quote_plus
 from pydantic import IPvAnyAddress
 from pydantic.v1 import BaseSettings
 
-from pkg import project_root_path
+from pkg import BASE_DIR
 from pkg.logger_helper import logger
 
 
@@ -59,7 +59,7 @@ class LocalConfig(BaseConfig):
     DEBUG: bool = True
 
     class Config:
-        env_file = (project_root_path / "configs" / ".env.local").as_posix()
+        env_file = (BASE_DIR / "configs" / ".env.local").as_posix()
         env_file_encoding = "utf-8"
 
 
@@ -67,7 +67,7 @@ class DevelopmentConfig(BaseConfig):
     DEBUG: bool = True
 
     class Config:
-        env_file = (project_root_path / "configs" / ".env.dev").as_posix()
+        env_file = (BASE_DIR / "configs" / ".env.dev").as_posix()
         env_file_encoding = "utf-8"
 
 
@@ -75,7 +75,7 @@ class TestingConfig(BaseConfig):
     DEBUG = False
 
     class Config:
-        env_file = (project_root_path / "configs" / ".env.test").as_posix()
+        env_file = (BASE_DIR / "configs" / ".env.test").as_posix()
         env_file_encoding = "utf-8"
 
 
@@ -83,5 +83,5 @@ class ProductionConfig(BaseConfig):
     DEBUG = False
 
     class Config:
-        env_file = (project_root_path / "configs" / ".env.prod").as_posix()
+        env_file = (BASE_DIR / "configs" / ".env.prod").as_posix()
         env_file_encoding = "utf-8"
