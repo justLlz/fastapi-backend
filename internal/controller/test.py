@@ -217,7 +217,7 @@ async def test_dao():
         # 3. 更新操作测试
         # 显式使用新查询器避免缓存问题
         updated_name = f"updated_name_{unique_hex}"
-        await UpdateBuilder(model_class=User).eq(User.id, test_user.id).update(username=updated_name).execute()
+        await UpdateBuilder(model_cls=User).eq(User.id, test_user.id).update(username=updated_name).execute()
         # 重新查询验证更新
         updated_user = await QueryBuilder(User).eq(User.id, test_user.id).get_or_exec()
         assert updated_user.username == updated_name
@@ -225,7 +225,7 @@ async def test_dao():
 
         # 显式使用新查询器避免缓存问题
         updated_name = f"updated_name_{unique_hex}"
-        await UpdateBuilder(model_class=User).eq(User.id, test_user.id).update(
+        await UpdateBuilder(model_cls=User).eq(User.id, test_user.id).update(
             **{"username": updated_name}).execute()
         # 重新查询验证更新
         updated_user = await QueryBuilder(User).eq(User.id, test_user.id).get_or_exec()

@@ -23,22 +23,23 @@ class Sort:
 class BaseBuilder:
     """SQL查询构建器基类，提供模型类和方法的基本结构"""
 
-    __slots__ = ('_model_class', '_stmt')  # 优化内存使用
+    __slots__ = ('_model_cls', '_stmt')  # 优化内存使用
 
-    def __init__(self, model_class: Type[MixinModelType]) -> None:
+    def __init__(self, *, model_cls: Type[MixinModelType]) -> None:
         """
         初始化查询构建器
 
         Args:
-            model_class: 要操作的模型类，必须是 ModelMixin 的子类
+            model_cls: 要操作的模型类，必须是 ModelMixin 的子类
 
         Raises:
-            TypeError: 如果 model_class 不是有效的模型类
+            TypeError: 如果 model_cls 不是有效的模型类
         """
-        if not isinstance(model_class, type) or not issubclass(model_class, ModelMixin):
-            raise HTTPException(500, f"model_class must be a subclass of ModelMixin, and actually gets: {type(model_class)}")
+        if not isinstance(model_cls, type) or not issubclass(model_cls, ModelMixin):
+            raise HTTPException(500,
+                                f"model_cls must be a subclass of ModelMixin, and actually gets: {type(model_cls)}")
 
-        self._model_class: Type[MixinModelType] = model_class
+        self._model_cls: Type[MixinModelType] = model_cls
         self._stmt: Union[Select, Delete, Update, None] = None
 
     # 单独的操作符方法
@@ -127,14 +128,14 @@ class BaseBuilder:
         elif operator == "between":
             if not isinstance(value, (list, tuple)) or len(value) != 2:
                 raise HTTPException(400, "Operator between requires a list/tuple with two values",
-                )
+                                    )
             return column.between(value[0], value[1])
         else:
             raise HTTPException(400, f"Unsupported operator: {operator}")
 
     def _apply_soft_delete(self) -> None:
         """安全地添加软删除过滤条件"""
-        deleted_column = self._model_class.get_column_or_none(self._model_class.deleted_at_column_name())
+        deleted_column = self._model_cls.get_column_or_none(self._model_cls.deleted_at_column_name())
         self._stmt = self._stmt.where(deleted_column.is_(None))
 
     def where(self, *conditions: ColumnExpressionArgument[bool]) -> "BaseBuilder":
@@ -165,7 +166,7 @@ class BaseBuilder:
                 logger.warning(f"invalid column name: {column_name}, must be str")
                 continue
             # 获取 SQLAlchemy 列对象
-            column = self._model_class.get_column_or_none(column_name)
+            column = self._model_cls.get_column_or_none(column_name)
             if column is None:
                 continue
 
@@ -187,7 +188,7 @@ class BaseBuilder:
 class QueryBuilder(BaseBuilder):
     def __init__(
             self,
-            model_class: Type[ModelMixin],
+            model_cls: Type[ModelMixin],
             *,
             include_deleted: bool = False,
             initial_where: Optional[ColumnElement] = None
@@ -196,20 +197,20 @@ class QueryBuilder(BaseBuilder):
         查询构建器基础类
 
         Args:
-            model_class: 要查询的模型类
+            model_cls: 要查询的模型类
             include_deleted: 是否包含已软删除的记录 (默认False)
             initial_where: 初始WHERE条件 (可选)
 
         Raises:
             ValueError: 如果模型类无效
         """
-        super().__init__(model_class)
+        super().__init__(model_cls=model_cls)
 
         # 基础查询语句
-        self._stmt: Select = select(self._model_class)
+        self._stmt: Select = select(self._model_cls)
 
         # 默认过滤已删除记录
-        if not include_deleted and self._model_class.has_deleted_at_column:
+        if not include_deleted and self._model_cls.has_deleted_at_column:
             self._apply_soft_delete()
 
         # 添加初始WHERE条件
@@ -226,7 +227,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self._stmt)
                 data = result.scalars().all()
             except Exception as e:
-                logger.error(f"{self._model_class.__name__} scalars_all error: {traceback.format_exc()}")
+                logger.error(f"{self._model_cls.__name__} scalars_all error: {traceback.format_exc()}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return [i for i in data]
 
@@ -236,7 +237,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self._stmt)
                 data = result.scalar_one_or_none()
             except Exception as e:
-                logger.error(f"{self._model_class.__name__} scalar_one_or_none error: {traceback.format_exc()}")
+                logger.error(f"{self._model_cls.__name__} scalar_one_or_none error: {traceback.format_exc()}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return data
 
@@ -246,7 +247,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self._stmt)
                 data = result.scalars().first()
             except Exception as e:
-                logger.error(f"{self._model_class.__name__} scalars_first: {repr(e)}")
+                logger.error(f"{self._model_cls.__name__} scalars_first: {repr(e)}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return data
 
@@ -273,7 +274,7 @@ class QueryBuilder(BaseBuilder):
 class CountBuilder(BaseBuilder):
     def __init__(
             self,
-            model_class: Type[ModelMixin],
+            model_cls: Type[ModelMixin],
             count_column: Optional[InstrumentedAttribute] = None,
             *,
             include_deleted: bool = False
@@ -282,20 +283,20 @@ class CountBuilder(BaseBuilder):
         计数查询构建器
 
         参数:
-            model_class: 要计数的模型类
+            model_cls: 要计数的模型类
             count_column: 要计数的列（默认为主键ID）
             include_deleted: 是否包含已软删除的记录（默认False）
         """
-        super().__init__(model_class)
+        super().__init__(model_cls=model_cls)
 
         # 设置计数列（默认为主键）
-        self._count_column = count_column if count_column is not None else self._model_class.id
+        self._count_column = count_column if count_column is not None else self._model_cls.id
 
         # 构建基础查询
         self._stmt: Select = select(func.count(self._count_column))
 
         # 默认过滤已删除记录
-        if not include_deleted and self._model_class.has_deleted_at_column():
+        if not include_deleted and self._model_cls.has_deleted_at_column():
             self._apply_soft_delete()
 
     @property
@@ -308,7 +309,7 @@ class CountBuilder(BaseBuilder):
                 exec_result = await sess.execute(self._stmt)
                 data = exec_result.scalar()
             except Exception as e:
-                logger.error(f"{self._model_class.__name__} count error: {repr(e)}")
+                logger.error(f"{self._model_cls.__name__} count error: {repr(e)}")
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
         return data
 
@@ -317,34 +318,35 @@ class UpdateBuilder(BaseBuilder):
     def __init__(
             self,
             *,
-            model_class: Optional[Type[ModelMixin]] = None,
+            model_cls: Optional[Type[ModelMixin]] = None,
             model_instance: Optional[ModelMixin] = None
     ):
         """
         更新构建器初始化
 
         参数:
-            model_class: 要更新的模型类（用于批量更新）
+            model_cls: 要更新的模型类（用于批量更新）
             model_instance: 要更新的模型实例（用于单条记录更新）
 
         注意:
-            - 必须且只能提供 model_class 或 model_instance 中的一个
+            - 必须且只能提供 model_cls 或 model_instance 中的一个
             - 如果提供 model_instance，会自动添加 WHERE id=instance.id 条件
         """
         # 参数校验
-        if (model_class is None) == (model_instance is None):
-            raise HTTPException(500, "must and can only provide one of model_class or model_instance")
+        if (model_cls is None) == (model_instance is None):
+            raise HTTPException(500, "must and can only provide one of model_cls or model_instance")
 
+        model_cls = model_cls if model_cls is not None else model_instance.__class__
         # 调用父类初始化
-        super().__init__(model_class if model_class is not None else model_instance.__class__)
+        super().__init__(model_cls=model_cls)
 
         # 初始化更新语句
-        self._stmt: Update = update(self._model_class)
-        self.update_dict = {}
+        self._stmt: Update = update(self._model_cls)
+        self._update_dict = {}
 
         # 如果是实例更新，添加ID条件
         if model_instance is not None:
-            model_id_column: InstrumentedAttribute = self._model_class.get_column_or_none("id")
+            model_id_column: InstrumentedAttribute = self._model_cls.get_column_or_none("id")
             self._stmt = self._stmt.where(model_id_column == model_instance.id)
 
     def update(self, **kwargs) -> "UpdateBuilder":
@@ -352,11 +354,18 @@ class UpdateBuilder(BaseBuilder):
             return self
 
         for column_name, value in kwargs.items():
-            if not self._model_class.has_column(column_name):
+            if not self._model_cls.has_column(column_name):
                 continue
 
-            self.update_dict[column_name] = value
+            self._update_dict[column_name] = value
 
+        return self
+
+    def soft_delete(self) -> "UpdateBuilder":
+        """软删除更新"""
+        if not self._model_cls.has_deleted_at_column():
+            return self
+        self._update_dict[self._model_cls.deleted_at_column_name()] = utc_datetime_with_no_tz()
         return self
 
     @property
@@ -369,41 +378,41 @@ class UpdateBuilder(BaseBuilder):
         4. 自动设置更新人字段（如果模型支持）
         """
         # 如果没有需要更新的字段，直接返回原始语句
-        if not self.update_dict:
+        if not self._update_dict:
             return self._stmt
 
         # 获取当前UTC时间（无时区信息，线程安全）
         current_time = utc_datetime_with_no_tz()
 
         # 获取模型定义的更新时间字段名
-        updated_at_column_name = self._model_class.updated_at_column_name()
+        updated_at_column_name = self._model_cls.updated_at_column_name()
 
         # 特殊处理：如果更新中包含软删除字段（逻辑删除）
         # 则将软删除时间同步到更新时间字段（保持时间一致）
-        if deleted_at_column_name := self._model_class.deleted_at_column_name() in self.update_dict:
-            self.update_dict.setdefault(
+        if (deleted_at_column_name := self._model_cls.deleted_at_column_name()) in self._update_dict:
+            self._update_dict.setdefault(
                 updated_at_column_name,
-                self.update_dict[deleted_at_column_name]
+                self._update_dict[deleted_at_column_name]
             )
 
         # 设置/更新 更新时间字段（如果未设置）
-        self.update_dict.setdefault(updated_at_column_name, current_time)
+        self._update_dict.setdefault(updated_at_column_name, current_time)
 
         # 如果模型支持更新人字段，自动设置当前用户ID
-        if self._model_class.has_updater_id_column():
-            self.update_dict.setdefault(
-                self._model_class.updater_id_column_name(),
+        if self._model_cls.has_updater_id_column():
+            self._update_dict.setdefault(
+                self._model_cls.updater_id_column_name(),
                 get_user_id_context_var()  # 从上下文获取当前用户ID
             )
 
         # 将更新字典应用到SQL语句
-        self._stmt = self._stmt.values(**self.update_dict)
+        self._stmt = self._stmt.values(**self._update_dict)
 
         return self._stmt
 
     async def execute(self):
-        if not self.update_dict:
-            logger.warning(f"{self._model_class.__name__} no update data")
+        if not self._update_dict:
+            logger.warning(f"{self._model_cls.__name__} no update data")
             return
 
         async with get_session() as sess:
@@ -411,7 +420,7 @@ class UpdateBuilder(BaseBuilder):
                 await sess.execute(self.update_stmt.execution_options(synchronize_session=False))
                 await sess.commit()
             except Exception as e:
-                logger.error(f"{self._model_class.__name__}: {repr(e)}")
+                logger.error(f"{self._model_cls.__name__}: {repr(e)}")
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
 
@@ -428,33 +437,34 @@ class DeleteBuilder(BaseBuilder):
     def __init__(
             self,
             *,
-            model_class: Optional[Type[ModelMixin]] = None,
+            model_cls: Optional[Type[ModelMixin]] = None,
             model_instance: Optional[ModelMixin] = None
     ):
         """
         删除构建器初始化
 
         参数:
-            model_class: 要删除的模型类（用于批量删除）
+            model_cls: 要删除的模型类（用于批量删除）
             model_instance: 要删除的模型实例（用于单条记录删除）
 
         注意:
-            - 必须且只能提供 model_class 或 model_instance 中的一个
+            - 必须且只能提供 model_cls 或 model_instance 中的一个
             - 如果提供 model_instance，会自动添加 WHERE id=instance.id 条件
         """
         # 参数校验
-        if (model_class is None) == (model_instance is None):
-            raise HTTPException(500, "must and can only provide one of model_class or model_instance")
+        if (model_cls is None) == (model_instance is None):
+            raise HTTPException(500, "must and can only provide one of model_cls or model_instance")
 
+        model_cls: Optional[Type[ModelMixin]] = model_cls if model_cls is not None else model_instance.__class__
         # 调用父类初始化
-        super().__init__(model_class if model_class is not None else model_instance.__class__)
+        super().__init__(model_cls=model_cls)
 
         # 初始化删除语句
-        self._stmt: Delete = delete(self._model_class)
+        self._stmt: Delete = delete(self._model_cls)
 
         # 如果是实例删除，添加ID条件
         if model_instance is not None:
-            model_id_column: InstrumentedAttribute = self._model_class.get_column_or_none("id")
+            model_id_column: InstrumentedAttribute = self._model_cls.get_column_or_none("id")
             self._stmt = self._stmt.where(model_id_column == model_instance.id)
 
     @property
@@ -478,12 +488,12 @@ class DeleteBuilder(BaseBuilder):
 
                 deleted_count = result.rowcount
                 if deleted_count == 0:
-                    logger.warning(f"No records deleted from {self._model_class.__name__}")
+                    logger.warning(f"No records deleted from {self._model_cls.__name__}")
                 else:
-                    logger.info(f"Successfully deleted {deleted_count} records from {self._model_class.__name__}")
+                    logger.info(f"Successfully deleted {deleted_count} records from {self._model_cls.__name__}")
 
                 return deleted_count
 
             except Exception as e:
-                logger.error(f"{self._model_class.__name__} delete error: {traceback.format_exc()}")
+                logger.error(f"{self._model_cls.__name__} delete error: {traceback.format_exc()}")
                 raise HTTPException(500, f"Failed to delete records: {str(e)}") from e

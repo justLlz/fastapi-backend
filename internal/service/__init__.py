@@ -14,7 +14,7 @@ class BaseService:
 
     @classmethod
     def updater(cls, model_class: Type[ModelMixin] = None, model_instance: ModelMixin = None):
-        return UpdateBuilder(model_class=model_class, model_instance=model_instance)
+        return UpdateBuilder(model_cls=model_class, model_instance=model_instance)
 
     @classmethod
     def counter(cls, model: Type[ModelMixin]):
@@ -22,4 +22,4 @@ class BaseService:
 
     @classmethod
     def deleter(cls, model_class: Type[ModelMixin] = None, model_instance: ModelMixin = None):
-        return DeleteBuilder(model_class=model_class, model_instance=model_instance)
+        return DeleteBuilder(model_cls=model_class, model_instance=model_instance)
