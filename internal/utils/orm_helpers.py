@@ -3,7 +3,7 @@ from typing import Any, Optional, Tuple, Type, Union
 
 from fastapi import HTTPException
 from sqlalchemy import (ColumnElement, ColumnExpressionArgument,
-                        Delete, Select, Update, asc, desc, func, or_, select, update)
+                        Delete, Select, Update, asc, delete, desc, func, or_, select, update)
 from sqlalchemy.orm import InstrumentedAttribute
 from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
@@ -36,7 +36,7 @@ class BaseBuilder:
             TypeError: 如果 model_class 不是有效的模型类
         """
         if not isinstance(model_class, type) or not issubclass(model_class, ModelMixin):
-            raise TypeError(f"model_class must be a subclass of ModelMixin, and actually gets: {type(model_class)}")
+            raise HTTPException(500, f"model_class must be a subclass of ModelMixin, and actually gets: {type(model_class)}")
 
         self._model_class: Type[MixinModelType] = model_class
         self._stmt: Union[Select, Delete, Update, None] = None
@@ -126,16 +126,11 @@ class BaseBuilder:
             return column.is_(None)
         elif operator == "between":
             if not isinstance(value, (list, tuple)) or len(value) != 2:
-                raise HTTPException(
-                    400,
-                    detail="Operator between requires a list/tuple with two values",
+                raise HTTPException(400, "Operator between requires a list/tuple with two values",
                 )
             return column.between(value[0], value[1])
         else:
-            raise HTTPException(
-                400,
-                detail=f"Unsupported operator: {operator}",
-            )
+            raise HTTPException(400, f"Unsupported operator: {operator}")
 
     def _apply_soft_delete(self) -> None:
         """安全地添加软删除过滤条件"""
@@ -231,7 +226,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self._stmt)
                 data = result.scalars().all()
             except Exception as e:
-                logger.error(f"{self._model_class.__name__} scalars_all: {traceback.format_exc()}")
+                logger.error(f"{self._model_class.__name__} scalars_all error: {traceback.format_exc()}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return [i for i in data]
 
@@ -241,7 +236,7 @@ class QueryBuilder(BaseBuilder):
                 result = await sess.execute(self._stmt)
                 data = result.scalar_one_or_none()
             except Exception as e:
-                logger.error(f"{self._model_class.__name__} scalar_one_or_none: {repr(e)}")
+                logger.error(f"{self._model_class.__name__} scalar_one_or_none error: {traceback.format_exc()}")
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return data
 
@@ -338,7 +333,7 @@ class UpdateBuilder(BaseBuilder):
         """
         # 参数校验
         if (model_class is None) == (model_instance is None):
-            raise ValueError("must and can only provide one of model_class or model_instance")
+            raise HTTPException(500, "must and can only provide one of model_class or model_instance")
 
         # 调用父类初始化
         super().__init__(model_class if model_class is not None else model_instance.__class__)
@@ -418,3 +413,77 @@ class UpdateBuilder(BaseBuilder):
             except Exception as e:
                 logger.error(f"{self._model_class.__name__}: {repr(e)}")
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+
+
+class DeleteBuilder(BaseBuilder):
+    """删除构建器，支持物理删除操作
+
+    特性:
+        - 支持通过模型类或模型实例初始化
+        - 支持批量删除条件构建
+        - 自动化的错误处理和日志记录
+        - 一致的 API 设计风格
+    """
+
+    def __init__(
+            self,
+            *,
+            model_class: Optional[Type[ModelMixin]] = None,
+            model_instance: Optional[ModelMixin] = None
+    ):
+        """
+        删除构建器初始化
+
+        参数:
+            model_class: 要删除的模型类（用于批量删除）
+            model_instance: 要删除的模型实例（用于单条记录删除）
+
+        注意:
+            - 必须且只能提供 model_class 或 model_instance 中的一个
+            - 如果提供 model_instance，会自动添加 WHERE id=instance.id 条件
+        """
+        # 参数校验
+        if (model_class is None) == (model_instance is None):
+            raise HTTPException(500, "must and can only provide one of model_class or model_instance")
+
+        # 调用父类初始化
+        super().__init__(model_class if model_class is not None else model_instance.__class__)
+
+        # 初始化删除语句
+        self._stmt: Delete = delete(self._model_class)
+
+        # 如果是实例删除，添加ID条件
+        if model_instance is not None:
+            model_id_column: InstrumentedAttribute = self._model_class.get_column_or_none("id")
+            self._stmt = self._stmt.where(model_id_column == model_instance.id)
+
+    @property
+    def delete_stmt(self) -> Delete:
+        """获取最终的删除语句（带属性访问器）"""
+        return self._stmt
+
+    async def execute(self) -> int:
+        """执行删除操作
+
+        返回:
+            删除的记录数
+
+        异常:
+            HTTPException: 当删除操作失败时抛出
+        """
+        async with get_session() as sess:
+            try:
+                result = await sess.execute(self.delete_stmt.execution_options(synchronize_session=False))
+                await sess.commit()
+
+                deleted_count = result.rowcount
+                if deleted_count == 0:
+                    logger.warning(f"No records deleted from {self._model_class.__name__}")
+                else:
+                    logger.info(f"Successfully deleted {deleted_count} records from {self._model_class.__name__}")
+
+                return deleted_count
+
+            except Exception as e:
+                logger.error(f"{self._model_class.__name__} delete error: {traceback.format_exc()}")
+                raise HTTPException(500, f"Failed to delete records: {str(e)}") from e
