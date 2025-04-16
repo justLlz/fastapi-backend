@@ -44,7 +44,7 @@ class AsyncTaskManager:
 
     async def add_task(self, task_id: str, coro_func: Callable[..., Awaitable[Any]], *args, **kwargs):
         coro_func_name = self._get_coro_func_name(coro_func)
-        lock_key = f"{coro_func_name}:{task_id}"
+        lock_key = f"lock:{coro_func_name}:{task_id}"
         if not (lock_id := await cache.acquire_lock(lock_key)):
             logger.info(f"{coro_func_name}, task_id: {task_id}, acquire_lock fail")
             return False
