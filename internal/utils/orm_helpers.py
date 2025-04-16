@@ -15,12 +15,12 @@ from pkg import utc_datetime_with_no_tz
 from pkg.logger_helper import logger
 
 
-class Sort:
+class _Sort:
     ASC: str = "asc"
     DESC: str = "desc"
 
 
-class BaseBuilder:
+class _BaseBuilder:
     """SQL查询构建器基类，提供模型类和方法的基本结构"""
 
     __slots__ = ('_model_cls', '_stmt')  # 优化内存使用
@@ -43,47 +43,47 @@ class BaseBuilder:
         self._stmt: Union[Select, Delete, Update, None] = None
 
     # 单独的操作符方法
-    def eq(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
+    def eq(self, column: InstrumentedAttribute, value: Any) -> "_BaseBuilder":
         """等于条件"""
         return self.where(column == value)
 
-    def ne(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
+    def ne(self, column: InstrumentedAttribute, value: Any) -> "_BaseBuilder":
         """不等于条件"""
         return self.where(column != value)
 
-    def gt(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
+    def gt(self, column: InstrumentedAttribute, value: Any) -> "_BaseBuilder":
         """大于条件"""
         return self.where(column > value)
 
-    def lt(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
+    def lt(self, column: InstrumentedAttribute, value: Any) -> "_BaseBuilder":
         """小于条件"""
         return self.where(column < value)
 
-    def ge(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
+    def ge(self, column: InstrumentedAttribute, value: Any) -> "_BaseBuilder":
         """大于等于条件"""
         return self.where(column >= value)
 
-    def le(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
+    def le(self, column: InstrumentedAttribute, value: Any) -> "_BaseBuilder":
         """小于等于条件"""
         return self.where(column <= value)
 
-    def in_(self, column: InstrumentedAttribute, values: list | tuple) -> "BaseBuilder":
+    def in_(self, column: InstrumentedAttribute, values: list | tuple) -> "_BaseBuilder":
         """包含于列表条件"""
         return self.where(column.in_(values))
 
-    def like(self, column: InstrumentedAttribute, pattern: str) -> "BaseBuilder":
+    def like(self, column: InstrumentedAttribute, pattern: str) -> "_BaseBuilder":
         """模糊匹配条件"""
         return self.where(column.like(f"%{pattern}%"))
 
-    def is_null(self, column: InstrumentedAttribute) -> "BaseBuilder":
+    def is_null(self, column: InstrumentedAttribute) -> "_BaseBuilder":
         """为空检查条件"""
         return self.where(column.is_(None))
 
-    def between(self, column: InstrumentedAttribute, range_values: Tuple[Any, Any]) -> "BaseBuilder":
+    def between(self, column: InstrumentedAttribute, range_values: Tuple[Any, Any]) -> "_BaseBuilder":
         """范围查询条件"""
         return self.where(column.between(range_values[0], range_values[1]))
 
-    def or_(self, *conditions) -> "BaseBuilder":
+    def or_(self, *conditions) -> "_BaseBuilder":
         """
         添加 OR 条件组合
         示例:
@@ -100,7 +100,7 @@ class BaseBuilder:
         self._stmt = self._stmt.where(or_(*conditions))
         return self
 
-    def distinct(self) -> "BaseBuilder":
+    def distinct(self) -> "_BaseBuilder":
         self._stmt = self._stmt.distinct()
         return self
 
@@ -138,7 +138,7 @@ class BaseBuilder:
         deleted_column = self._model_cls.get_column_or_none(self._model_cls.deleted_at_column_name())
         self._stmt = self._stmt.where(deleted_column.is_(None))
 
-    def where(self, *conditions: ColumnExpressionArgument[bool]) -> "BaseBuilder":
+    def where(self, *conditions: ColumnExpressionArgument[bool]) -> "_BaseBuilder":
         """
         example:
         builder = QueryBuilder(MyModel)
@@ -152,7 +152,7 @@ class BaseBuilder:
         self._stmt = self._stmt.where(*conditions)
         return self
 
-    def where_by(self, **kwargs) -> "BaseBuilder":
+    def where_by(self, **kwargs) -> "_BaseBuilder":
         """
         支持 kwargs 的 key 与数据库字段名一致，value 是操作符字典
         示例:
@@ -185,7 +185,7 @@ class BaseBuilder:
         return self
 
 
-class QueryBuilder(BaseBuilder):
+class _QueryBuilder(_BaseBuilder):
     def __init__(
             self,
             model_cls: Type[ModelMixin],
@@ -261,17 +261,17 @@ class QueryBuilder(BaseBuilder):
         data = await self.scalar_one_or_none()
         return data
 
-    def order_by(self, col: InstrumentedAttribute, sort: str = Sort.DESC) -> "QueryBuilder":
-        self._stmt = self._stmt.order_by(asc(col) if sort == Sort.ASC else desc(col))
+    def order_by(self, col: InstrumentedAttribute, sort: str = _Sort.DESC) -> "_QueryBuilder":
+        self._stmt = self._stmt.order_by(asc(col) if sort == _Sort.ASC else desc(col))
         return self
 
-    def paginate(self, page: Optional[int] = None, limit: Optional[int] = None) -> "QueryBuilder":
+    def paginate(self, page: Optional[int] = None, limit: Optional[int] = None) -> "_QueryBuilder":
         if page and limit:
             self._stmt = self._stmt.offset((page - 1) * limit).limit(limit)
         return self
 
 
-class CountBuilder(BaseBuilder):
+class _CountBuilder(_BaseBuilder):
     def __init__(
             self,
             model_cls: Type[ModelMixin],
@@ -314,7 +314,7 @@ class CountBuilder(BaseBuilder):
         return data
 
 
-class UpdateBuilder(BaseBuilder):
+class _UpdateBuilder(_BaseBuilder):
     def __init__(
             self,
             *,
@@ -349,7 +349,7 @@ class UpdateBuilder(BaseBuilder):
             model_id_column: InstrumentedAttribute = self._model_cls.get_column_or_none("id")
             self._stmt = self._stmt.where(model_id_column == model_ins.id)
 
-    def update(self, **kwargs) -> "UpdateBuilder":
+    def update(self, **kwargs) -> "_UpdateBuilder":
         if not kwargs:
             return self
 
@@ -361,7 +361,7 @@ class UpdateBuilder(BaseBuilder):
 
         return self
 
-    def soft_delete(self) -> "UpdateBuilder":
+    def soft_delete(self) -> "_UpdateBuilder":
         """软删除更新"""
         if not self._model_cls.has_deleted_at_column():
             return self
@@ -424,7 +424,7 @@ class UpdateBuilder(BaseBuilder):
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
 
-class DeleteBuilder(BaseBuilder):
+class _DeleteBuilder(_BaseBuilder):
     """删除构建器，支持物理删除操作
 
     特性:
@@ -532,7 +532,7 @@ def _validate_model_ins(model_ins: object, expected_type: type = ModelMixin):
 def new_cls_querier(model_cls: Type[ModelMixin],
                     *,
                     include_deleted: bool = False,
-                    initial_where: Optional[ColumnElement] = None) -> QueryBuilder:
+                    initial_where: Optional[ColumnElement] = None) -> _QueryBuilder:
     """创建一个新的查询器实例
 
     参数:
@@ -542,10 +542,10 @@ def new_cls_querier(model_cls: Type[ModelMixin],
         查询器实例
     """
     _validate_model_cls(model_cls)
-    return QueryBuilder(model_cls=model_cls, include_deleted=include_deleted, initial_where=initial_where)
+    return _QueryBuilder(model_cls=model_cls, include_deleted=include_deleted, initial_where=initial_where)
 
 
-def new_cls_updater(model_cls: Type[ModelMixin]) -> UpdateBuilder:
+def new_cls_updater(model_cls: Type[ModelMixin]) -> _UpdateBuilder:
     """创建一个基于模型类的更新器
 
     Args:
@@ -555,13 +555,13 @@ def new_cls_updater(model_cls: Type[ModelMixin]) -> UpdateBuilder:
         HTTPException: 当输入无效时返回500错误
 
     Returns:
-        UpdateBuilder: 更新器实例
+        _UpdateBuilder: 更新器实例
     """
     _validate_model_cls(model_cls)
-    return UpdateBuilder(model_cls=model_cls)
+    return _UpdateBuilder(model_cls=model_cls)
 
 
-def new_ins_updater(model_ins: ModelMixin) -> UpdateBuilder:
+def new_ins_updater(model_ins: ModelMixin) -> _UpdateBuilder:
     """创建一个基于模型实例的更新器
 
     Args:
@@ -571,13 +571,13 @@ def new_ins_updater(model_ins: ModelMixin) -> UpdateBuilder:
         HTTPException: 当输入无效时返回500错误
 
     Returns:
-        UpdateBuilder: 更新器实例
+        _UpdateBuilder: 更新器实例
     """
     _validate_model_ins(model_ins)
-    return UpdateBuilder(model_ins=model_ins)
+    return _UpdateBuilder(model_ins=model_ins)
 
 
-def new_deleter(model_cls: Type[ModelMixin]) -> DeleteBuilder:
+def new_deleter(model_cls: Type[ModelMixin]) -> _DeleteBuilder:
     """创建一个新的删除器实例
 
     参数:
@@ -587,10 +587,10 @@ def new_deleter(model_cls: Type[ModelMixin]) -> DeleteBuilder:
         删除器实例
     """
     _validate_model_cls(model_cls)
-    return DeleteBuilder(model_cls=model_cls)
+    return _DeleteBuilder(model_cls=model_cls)
 
 
-def new_counter(model_cls: Type[ModelMixin]) -> CountBuilder:
+def new_counter(model_cls: Type[ModelMixin]) -> _CountBuilder:
     """创建一个新的计数器实例
 
     参数:
@@ -600,10 +600,10 @@ def new_counter(model_cls: Type[ModelMixin]) -> CountBuilder:
         计数器实例
     """
     _validate_model_cls(model_cls)
-    return CountBuilder(model_cls=model_cls)
+    return _CountBuilder(model_cls=model_cls)
 
 
-def new_counter_column(model_cls: Type[ModelMixin], column_name: str, include_deleted=False) -> CountBuilder:
+def new_counter_column(model_cls: Type[ModelMixin], column_name: str, include_deleted=False) -> _CountBuilder:
     """创建一个新的计数器实例，针对特定的列
 
     参数:
@@ -615,4 +615,4 @@ def new_counter_column(model_cls: Type[ModelMixin], column_name: str, include_de
     """
     _validate_model_cls(model_cls)
     count_column = model_cls.get_column_or_raise(column_name)
-    return CountBuilder(model_cls=model_cls, count_column=count_column, include_deleted=include_deleted)
+    return _CountBuilder(model_cls=model_cls, count_column=count_column, include_deleted=include_deleted)

@@ -8,7 +8,7 @@ from decimal import Decimal
 import numpy as np
 from fastapi import APIRouter, HTTPException, Request
 
-from internal.utils.orm_helpers import CountBuilder, QueryBuilder, UpdateBuilder
+from internal.utils.orm_helpers import _CountBuilder, _QueryBuilder, _UpdateBuilder
 from internal.models.user import User
 from internal.utils.asyncio_task import async_task_manager
 from pkg.logger_helper import logger
@@ -120,70 +120,70 @@ async def test_dao():
 
     try:
         # 1. 验证基础查询
-        created_user = await QueryBuilder(User).eq(User.id, test_user.id).get_or_exec()
+        created_user = await _QueryBuilder(User).eq(User.id, test_user.id).get_or_exec()
         assert created_user.id == test_user.id
         logger.info(f"test created success")
 
         # 2. 测试各种查询操作符
         # eq
-        user = await QueryBuilder(User).eq(User.id, test_user.id).get_or_none()
+        user = await _QueryBuilder(User).eq(User.id, test_user.id).get_or_none()
         assert user.id == test_user.id
         logger.info(f"test eq success")
 
         # ne
-        ne_users = await QueryBuilder(User).ne(User.id, test_user.id).scalars_all()
+        ne_users = await _QueryBuilder(User).ne(User.id, test_user.id).scalars_all()
         assert all(u.id != test_user.id for u in ne_users)
         logger.info(f"test ne success")
 
         # gt
-        gt_users = await QueryBuilder(User).gt(User.id, test_user.id).scalars_all()
+        gt_users = await _QueryBuilder(User).gt(User.id, test_user.id).scalars_all()
         assert all(u.id > test_user.id for u in gt_users)
         logger.info(f"test gt success")
 
         # lt
-        lt_users = await QueryBuilder(User).lt(User.id, test_user.id).scalars_all()
+        lt_users = await _QueryBuilder(User).lt(User.id, test_user.id).scalars_all()
         assert all(u.id < test_user.id for u in lt_users)
         logger.info(f"test lt success")
 
         # ge
-        ge_users = await QueryBuilder(User).ge(User.id, test_user.id).scalars_all()
+        ge_users = await _QueryBuilder(User).ge(User.id, test_user.id).scalars_all()
         assert all(u.id >= test_user.id for u in ge_users)
         logger.info(f"test ge success")
 
         # le
-        le_users = await QueryBuilder(User).le(User.id, test_user.id).scalars_all()
+        le_users = await _QueryBuilder(User).le(User.id, test_user.id).scalars_all()
         assert all(u.id <= test_user.id for u in le_users)
         logger.info(f"test le success")
 
         # in_ 测试
-        in_users = await QueryBuilder(User).in_(User.id, [test_user.id]).scalars_all()
+        in_users = await _QueryBuilder(User).in_(User.id, [test_user.id]).scalars_all()
         assert len(in_users) == 1
         logger.info(f"test in_ success")
 
         # like 测试
-        like_users = await QueryBuilder(User).like(User.username, "lilinze").scalars_all()
+        like_users = await _QueryBuilder(User).like(User.username, "lilinze").scalars_all()
         assert all("lilinze" in u.username for u in like_users)
         logger.info(f"test like success")
 
         # is_null 测试（确保测试时deleted_at为null）
-        null_users = await QueryBuilder(User).is_null(User.deleted_at).scalars_all()
+        null_users = await _QueryBuilder(User).is_null(User.deleted_at).scalars_all()
         assert any(u.deleted_at is None for u in null_users)
         logger.info(f"test is_null success")
 
         # 4. 计数测试
-        count = await CountBuilder(User).ge(User.id, 0).count()
+        count = await _CountBuilder(User).ge(User.id, 0).count()
         assert count >= 1
         logger.info(f"test count success")
 
         # AND 组合
-        and_users = await (QueryBuilder(User).
+        and_users = await (_QueryBuilder(User).
                            eq(User.username, test_user.username).
                            eq(User.account, test_user.account).get_or_exec())
         assert and_users.username == test_user.username, and_users.account == test_user.account
         logger.info(f"test and success")
 
         # where 组合
-        where_user = await QueryBuilder(User).where(
+        where_user = await _QueryBuilder(User).where(
             User.username == test_user.username,
             User.account == test_user.account
         ).get_or_exec()
@@ -192,14 +192,14 @@ async def test_dao():
 
         # where_by 组合
         where_by_query_dict = {"username": test_user.username, "account": test_user.account}
-        where_by_users = await QueryBuilder(User).where_by(
+        where_by_users = await _QueryBuilder(User).where_by(
             **where_by_query_dict
         ).get_or_exec()
         assert where_by_users.username == test_user.username, where_by_users.account == test_user.account
         logger.info(f"test where_by success")
 
         # OR 组合
-        or_users = await QueryBuilder(User).or_(
+        or_users = await _QueryBuilder(User).or_(
             User.username == test_user.username,
             User.account == "invalid_account"
         ).scalars_all()
@@ -207,7 +207,7 @@ async def test_dao():
         logger.info(f"test or success")
 
         # BETWEEN 组合
-        between_users = await QueryBuilder(User).between(
+        between_users = await _QueryBuilder(User).between(
             User.id,
             (test_user.id - 1, test_user.id + 1)
         ).scalars_all()
@@ -217,18 +217,18 @@ async def test_dao():
         # 3. 更新操作测试
         # 显式使用新查询器避免缓存问题
         updated_name = f"updated_name_{unique_hex}"
-        await UpdateBuilder(model_cls=User).eq(User.id, test_user.id).update(username=updated_name).execute()
+        await _UpdateBuilder(model_cls=User).eq(User.id, test_user.id).update(username=updated_name).execute()
         # 重新查询验证更新
-        updated_user = await QueryBuilder(User).eq(User.id, test_user.id).get_or_exec()
+        updated_user = await _QueryBuilder(User).eq(User.id, test_user.id).get_or_exec()
         assert updated_user.username == updated_name
         logger.info(f"test update-1 success")
 
         # 显式使用新查询器避免缓存问题
         updated_name = f"updated_name_{unique_hex}"
-        await UpdateBuilder(model_cls=User).eq(User.id, test_user.id).update(
+        await _UpdateBuilder(model_cls=User).eq(User.id, test_user.id).update(
             **{"username": updated_name}).execute()
         # 重新查询验证更新
-        updated_user = await QueryBuilder(User).eq(User.id, test_user.id).get_or_exec()
+        updated_user = await _QueryBuilder(User).eq(User.id, test_user.id).get_or_exec()
         assert updated_user.username == updated_name
         logger.info(f"test update-2 success")
     except Exception as e:

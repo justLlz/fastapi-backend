@@ -1,7 +1,7 @@
 from http.client import HTTPException
 from typing import Type, Union
 
-from internal.utils.orm_helpers import (QueryBuilder, UpdateBuilder, CountBuilder, DeleteBuilder, new_cls_updater,
+from internal.utils.orm_helpers import (_QueryBuilder, _UpdateBuilder, _CountBuilder, _DeleteBuilder, new_cls_updater,
                                         new_counter, new_deleter, new_ins_updater, new_cls_querier)
 from internal.utils.cache_helpers import cache
 from internal.models import ModelMixin
