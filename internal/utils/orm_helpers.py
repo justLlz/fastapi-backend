@@ -499,8 +499,40 @@ class DeleteBuilder(BaseBuilder):
                 raise HTTPException(500, f"Failed to delete records: {str(e)}") from e
 
 
-def new_querier_by_cls(model_cls: Type[ModelMixin], *, include_deleted: bool = False,
-                       initial_where: Optional[ColumnElement] = None) -> QueryBuilder:
+def _validate_model_cls(model_cls: type, expected_type: type = type, subclass_of: type = ModelMixin):
+    """校验 model_cls 是否为指定的类型且是指定类的子类"""
+    if model_cls is None:
+        raise HTTPException(500, "model_cls cannot be None")
+
+    if not isinstance(model_cls, expected_type):
+        raise HTTPException(
+            500,
+            f"model_cls must be a {expected_type.__name__}, got {type(model_cls).__name__}"
+        )
+
+    if not issubclass(model_cls, subclass_of):
+        raise HTTPException(
+            500,
+            f"model_cls must be a subclass of {subclass_of.__name__}, got {model_cls.__name__}"
+        )
+
+
+def _validate_model_ins(model_ins: object, expected_type: type = ModelMixin):
+    """校验 model_ins 是否为指定的类型且不是 None"""
+    if model_ins is None:
+        raise HTTPException(500, "model_ins cannot be None")
+
+    if not isinstance(model_ins, expected_type):
+        raise HTTPException(
+            500,
+            f"model_ins must be a {expected_type.__name__} instance, got {type(model_ins).__name__}"
+        )
+
+
+def new_cls_querier(model_cls: Type[ModelMixin],
+                    *,
+                    include_deleted: bool = False,
+                    initial_where: Optional[ColumnElement] = None) -> QueryBuilder:
     """创建一个新的查询器实例
 
     参数:
@@ -509,31 +541,40 @@ def new_querier_by_cls(model_cls: Type[ModelMixin], *, include_deleted: bool = F
     返回:
         查询器实例
     """
+    _validate_model_cls(model_cls)
     return QueryBuilder(model_cls=model_cls, include_deleted=include_deleted, initial_where=initial_where)
 
 
-def new_ins_updater(model_ins: ModelMixin) -> UpdateBuilder:
-    """创建一个新的更新器实例
-
-    参数:
-        model_ins: 要更新的模型实例
-
-    返回:
-        更新器实例
-    """
-    return UpdateBuilder(model_ins=model_ins)
-
-
 def new_cls_updater(model_cls: Type[ModelMixin]) -> UpdateBuilder:
-    """创建一个新的更新器实例
+    """创建一个基于模型类的更新器
 
-    参数:
-        model_cls: 要更新的模型类
+    Args:
+        model_cls: 必须是 ModelMixin 的子类（不是实例）
 
-    返回:
-        更新器实例
+    Raises:
+        HTTPException: 当输入无效时返回500错误
+
+    Returns:
+        UpdateBuilder: 更新器实例
     """
+    _validate_model_cls(model_cls)
     return UpdateBuilder(model_cls=model_cls)
+
+
+def new_ins_updater(model_ins: ModelMixin) -> UpdateBuilder:
+    """创建一个基于模型实例的更新器
+
+    Args:
+        model_ins: 必须是 ModelMixin 的非空实例
+
+    Raises:
+        HTTPException: 当输入无效时返回500错误
+
+    Returns:
+        UpdateBuilder: 更新器实例
+    """
+    _validate_model_ins(model_ins)
+    return UpdateBuilder(model_ins=model_ins)
 
 
 def new_deleter(model_cls: Type[ModelMixin]) -> DeleteBuilder:
@@ -545,6 +586,7 @@ def new_deleter(model_cls: Type[ModelMixin]) -> DeleteBuilder:
     返回:
         删除器实例
     """
+    _validate_model_cls(model_cls)
     return DeleteBuilder(model_cls=model_cls)
 
 
@@ -557,11 +599,12 @@ def new_counter(model_cls: Type[ModelMixin]) -> CountBuilder:
     返回:
         计数器实例
     """
+    _validate_model_cls(model_cls)
     return CountBuilder(model_cls=model_cls)
 
 
 def new_counter_column(model_cls: Type[ModelMixin], column_name: str, include_deleted=False) -> CountBuilder:
-    """创建一个新的计数器实例
+    """创建一个新的计数器实例，针对特定的列
 
     参数:
         model_cls: 要计数的模型类
@@ -570,5 +613,6 @@ def new_counter_column(model_cls: Type[ModelMixin], column_name: str, include_de
     返回:
         计数器实例
     """
+    _validate_model_cls(model_cls)
     count_column = model_cls.get_column_or_raise(column_name)
     return CountBuilder(model_cls=model_cls, count_column=count_column, include_deleted=include_deleted)
