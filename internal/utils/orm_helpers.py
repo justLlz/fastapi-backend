@@ -319,7 +319,7 @@ class UpdateBuilder(BaseBuilder):
             self,
             *,
             model_cls: Optional[Type[ModelMixin]] = None,
-            model_instance: Optional[ModelMixin] = None
+            model_ins: Optional[ModelMixin] = None
     ):
         """
         更新构建器初始化
@@ -333,10 +333,10 @@ class UpdateBuilder(BaseBuilder):
             - 如果提供 model_instance，会自动添加 WHERE id=instance.id 条件
         """
         # 参数校验
-        if (model_cls is None) == (model_instance is None):
+        if (model_cls is None) == (model_ins is None):
             raise HTTPException(500, "must and can only provide one of model_cls or model_instance")
 
-        model_cls = model_cls if model_cls is not None else model_instance.__class__
+        model_cls = model_cls if model_cls is not None else model_ins.__class__
         # 调用父类初始化
         super().__init__(model_cls=model_cls)
 
@@ -345,9 +345,9 @@ class UpdateBuilder(BaseBuilder):
         self._update_dict = {}
 
         # 如果是实例更新，添加ID条件
-        if model_instance is not None:
+        if model_ins is not None:
             model_id_column: InstrumentedAttribute = self._model_cls.get_column_or_none("id")
-            self._stmt = self._stmt.where(model_id_column == model_instance.id)
+            self._stmt = self._stmt.where(model_id_column == model_ins.id)
 
     def update(self, **kwargs) -> "UpdateBuilder":
         if not kwargs:
@@ -497,3 +497,78 @@ class DeleteBuilder(BaseBuilder):
             except Exception as e:
                 logger.error(f"{self._model_cls.__name__} delete error: {traceback.format_exc()}")
                 raise HTTPException(500, f"Failed to delete records: {str(e)}") from e
+
+
+def new_querier_by_cls(model_cls: Type[ModelMixin], *, include_deleted: bool = False,
+                       initial_where: Optional[ColumnElement] = None) -> QueryBuilder:
+    """创建一个新的查询器实例
+
+    参数:
+        model_cls: 要查询的模型类
+
+    返回:
+        查询器实例
+    """
+    return QueryBuilder(model_cls=model_cls, include_deleted=include_deleted, initial_where=initial_where)
+
+
+def new_ins_updater(model_ins: ModelMixin) -> UpdateBuilder:
+    """创建一个新的更新器实例
+
+    参数:
+        model_ins: 要更新的模型实例
+
+    返回:
+        更新器实例
+    """
+    return UpdateBuilder(model_ins=model_ins)
+
+
+def new_cls_updater(model_cls: Type[ModelMixin]) -> UpdateBuilder:
+    """创建一个新的更新器实例
+
+    参数:
+        model_cls: 要更新的模型类
+
+    返回:
+        更新器实例
+    """
+    return UpdateBuilder(model_cls=model_cls)
+
+
+def new_deleter(model_cls: Type[ModelMixin]) -> DeleteBuilder:
+    """创建一个新的删除器实例
+
+    参数:
+        model_cls: 要删除的模型类
+
+    返回:
+        删除器实例
+    """
+    return DeleteBuilder(model_cls=model_cls)
+
+
+def new_counter(model_cls: Type[ModelMixin]) -> CountBuilder:
+    """创建一个新的计数器实例
+
+    参数:
+        model_cls: 要计数的模型类
+
+    返回:
+        计数器实例
+    """
+    return CountBuilder(model_cls=model_cls)
+
+
+def new_counter_column(model_cls: Type[ModelMixin], column_name: str, include_deleted=False) -> CountBuilder:
+    """创建一个新的计数器实例
+
+    参数:
+        model_cls: 要计数的模型类
+        column_name: 要计数的列名
+
+    返回:
+        计数器实例
+    """
+    count_column = model_cls.get_column_or_raise(column_name)
+    return CountBuilder(model_cls=model_cls, count_column=count_column, include_deleted=include_deleted)

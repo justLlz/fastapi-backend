@@ -8,19 +8,6 @@ from sqlalchemy.orm import InstrumentedAttribute
 from internal.models import ModelMixin
 from pkg import validate_phone_number
 
-
-def normalize_column(col: InstrumentedAttribute | Column) -> ColumnElement:
-    if isinstance(col, InstrumentedAttribute):
-        return col.__clause_element__()
-    elif isinstance(col, Column):
-        return col
-    else:
-        raise ValueError(
-            f"Unsupported type for 'col': {type(col).__name__}. "
-            f"Expected InstrumentedAttribute or Column."
-        )
-
-
 MixinValType = Union[list, set, tuple, frozenset, str, int, float, bool, Decimal, None]
 MixinModelType = TypeVar("MixinModelType", bound=ModelMixin)  # 定义一个泛型变量 T，继承自 ModelMixin
 
