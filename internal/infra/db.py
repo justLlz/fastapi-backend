@@ -15,7 +15,7 @@ Base = declarative_base()
 
 # 创建异步引擎
 engine = create_async_engine(
-    setting.sqlalchemy_database_uri,
+    url=setting.sqlalchemy_database_uri,
     echo=False,
     pool_pre_ping=True,
     pool_size=10,

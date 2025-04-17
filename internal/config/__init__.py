@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import List, Union
 from urllib.parse import quote_plus
 
@@ -6,7 +5,6 @@ from pydantic import IPvAnyAddress
 from pydantic.v1 import BaseSettings
 
 from pkg import BASE_DIR
-from pkg.logger_helper import logger
 
 
 class BaseConfig(BaseSettings):

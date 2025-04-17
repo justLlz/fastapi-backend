@@ -2,8 +2,6 @@ from decimal import Decimal
 from typing import Annotated, TypeVar, Union
 
 from pydantic import AfterValidator, Field
-from sqlalchemy import Column, ColumnElement
-from sqlalchemy.orm import InstrumentedAttribute
 
 from internal.models import ModelMixin
 from pkg import validate_phone_number
