@@ -13,6 +13,10 @@ class BaseService:
         return new_cls_querier(model_cls)
 
     @classmethod
+    def querier_include_deleted(cls, model_cls: Type[ModelMixin]):
+        return new_cls_querier(model_cls, include_deleted=True)
+
+    @classmethod
     def updater(cls, *, model_cls: Type[ModelMixin] = None, model_ins: ModelMixin = None):
         if (model_cls is None) == (model_ins is None):
             raise HTTPException(500, "must and can only provide one of model_class or model_instance")
