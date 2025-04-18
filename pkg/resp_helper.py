@@ -25,10 +25,10 @@ class CustomORJSONResponse(ORJSONResponse):
             if isinstance(obj, (list, tuple, set, frozenset)):
                 return [custom_serializer(i) for i in obj]
 
-            if isinstance(obj, datetime.datetime):
-                if obj.tzinfo is None:
-                    obj = obj.replace(tzinfo=datetime.timezone.utc)
-                return obj.isoformat().replace("+00:00", "Z")
+            # if isinstance(obj, datetime.datetime):
+            #     if obj.tzinfo is None:
+            #         obj = obj.replace(tzinfo=datetime.timezone.utc)
+            #     return obj.isoformat().replace("+00:00", "Z")
 
             if isinstance(obj, Decimal):
                 return float(obj) if obj.as_tuple().exponent >= -6 else str(obj)  # 避免浮点数精度丢失
