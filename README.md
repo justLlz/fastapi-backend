@@ -22,7 +22,23 @@ fastapi-backend/
     /proto_generated    //proto生成的文件
     /scripts            // 脚本
     /main.go            // 入口文件，初始化
+    /README.md          // 说明
+    /uv.lock            // 依赖锁文件
+    /pyprojecy.toml     // pip配置文件
     
     请求示例：
         前端 -- > middleware -- > controller -- > service -- > dao -- > service -- > controller --> transformers --> 前端
+```
+
+```shell
+初始化环境 uv venv .venv && uv pip sync uv.lock
+
+激活环境  source .venv/bin/activate
+
+添加新依赖 uv pip add <包名> --dev
+
+更新锁文件 uv pip compile --output uv.lock
+
+重建环境   rm -rf .venv && uv pip sync uv.lock
+
 ```
