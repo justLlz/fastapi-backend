@@ -31,7 +31,10 @@ fastapi-backend/
 ```
 
 ```shell
- 显示所有可安装/已安装版本 
+迁移
+uv add -r requirements.txt
+
+显示所有可安装/已安装版本 
  uv python list
  
  显示已经安装的版本
@@ -51,6 +54,12 @@ uv add <包名>
 
 同步新依赖
 uv lock && uv sync
+
+所有的依赖
+uv pip list
+
+清理缓存
+uv clean
 
 重建环境
 rm -rf .venv && uv pip sync
