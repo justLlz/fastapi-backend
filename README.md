@@ -31,17 +31,27 @@ fastapi-backend/
 ```
 
 ```shell
-初始化环境 uv venv .venv
+ 显示所有可安装/已安装版本 
+ uv python list
+ 
+ 显示已经安装的版本
+ uv python find
+ 
+初始化环境
+uv venv .venv --python 3.12.9
 
-安装所有包 uv sync
+安装所有包
+uv sync --locked
 
-安装新依赖 uv pip install <包名>
+添加新依赖
+uv add <包名>
 
-添加新依赖 uv add <包名>
+同步新依赖
+uv lock && uv sync
 
-同步环境   uv sync
+重建环境
+rm -rf .venv && uv pip sync
 
-重建环境   rm -rf .venv && uv pip sync
-
-激活环境  source .venv/bin/activate
+激活环境
+source .venv/bin/activate
 ```
