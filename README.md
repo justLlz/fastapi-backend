@@ -35,9 +35,9 @@ fastapi-backend/
 
 安装所有包 uv sync
 
-添加新依赖 uv pip add <包名> --dev
+安装新依赖 uv pip install <包名>
 
-更新锁文件 uv pip compile --output uv.lock
+添加新依赖 ub add <包名>
 
 重建环境   rm -rf .venv && uv pip sync
 
