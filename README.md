@@ -33,14 +33,13 @@ fastapi-backend/
 ```shell
 初始化环境 uv venv .venv
 
-激活环境  source .venv/bin/activate
-
-安装所有包 uv pip sync uv.lock
+安装所有包 uv sync
 
 添加新依赖 uv pip add <包名> --dev
 
 更新锁文件 uv pip compile --output uv.lock
 
-重建环境   rm -rf .venv && uv pip sync uv.lock
+重建环境   rm -rf .venv && uv pip sync
 
+激活环境  source .venv/bin/activate
 ```
