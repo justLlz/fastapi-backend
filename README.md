@@ -40,6 +40,9 @@ fastapi-backend/
 初始化环境
 uv venv .venv --python 3.12.9
 
+检查依赖
+uv check
+
 安装所有包
 uv sync --locked
 
