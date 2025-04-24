@@ -31,9 +31,11 @@ fastapi-backend/
 ```
 
 ```shell
-初始化环境 uv venv .venv && uv pip sync uv.lock
+初始化环境 uv venv .venv
 
 激活环境  source .venv/bin/activate
+
+安装所有包 uv pip sync uv.lock
 
 添加新依赖 uv pip add <包名> --dev
 
