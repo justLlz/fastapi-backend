@@ -10,7 +10,7 @@ from internal.infra.db import Base, get_session
 from internal.utils.context import get_user_id_context_var
 from pkg import datetime_to_string, utc_datetime
 from pkg.logger_helper import logger
-from pkg.snow_flake import generate_snowflake_id
+from pkg.snowflake_helper import generate_snowflake_id
 
 
 class ModelMixin(Base):
