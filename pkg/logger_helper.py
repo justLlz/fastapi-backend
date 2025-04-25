@@ -13,7 +13,7 @@ class LogConfig:
     LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     DIR: Path = BASE_DIR / "logs"
     FILE_NAME: str = "app_{time:YYYY-MM-DD}.log"
-    ROTATION: str = os.getenv("LOG_ROTATION", "100 MB")  # 支持大小/时间轮转
+    ROTATION: str = os.getenv("LOG_ROTATION", "00:00 or 100 MB")  # 支持大小/时间轮转
     RETENTION: str = os.getenv("LOG_RETENTION", "30 days")
     COMPRESSION: str = "zip"  # 压缩格式
 

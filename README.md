@@ -62,7 +62,7 @@ uv pip list
 uv clean
 
 重建环境
-rm -rf .venv && uv pip sync
+rm -rf .venv && uv sync
 
 激活环境
 source .venv/bin/activate
