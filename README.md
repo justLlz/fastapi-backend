@@ -24,7 +24,7 @@ fastapi-backend/
     /main.go            // 入口文件，初始化
     /README.md          // 说明
     /uv.lock            // 依赖锁文件
-    /pyprojecy.toml     // pip配置文件
+    /pyproject.toml     // pip配置文件
     
     请求示例：
         前端 -- > middleware -- > controller -- > service -- > dao -- > service -- > controller --> transformers --> 前端
