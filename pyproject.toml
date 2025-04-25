@@ -2,6 +2,7 @@
 name = "fastapi-backend"
 version = "0.1.0"
 description = "Add your description here"
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "aiofiles==24.1.0",
@@ -15,7 +16,7 @@ dependencies = [
     "colorama==0.4.6",
     "cryptography==44.0.2",
     "fastapi==0.115.12",
-    "greenlet==3.1.1",
+    "greenlet==3.2.1",
     "h11==0.14.0",
     "httpcore==1.0.7",
     "httpx==0.28.1",
@@ -31,6 +32,7 @@ dependencies = [
     "python-dotenv==1.1.0",
     "pytz==2025.2",
     "redis==5.2.1",
+    "setuptools==79.0.1",
     "shortuuid==1.0.13",
     "sniffio==1.3.1",
     "snowflake-id==1.0.2",
