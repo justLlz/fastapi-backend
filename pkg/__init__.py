@@ -7,7 +7,6 @@ import time
 import random
 import uuid
 from pathlib import Path
-from typing import List, Optional
 from urllib.parse import urlencode, urlunparse
 
 import colorama
@@ -100,7 +99,7 @@ def extract_dict(d, keys):
     return {k: v for k, v in d.items() if k in keys}
 
 
-def ensure_list(v) -> List:
+def ensure_list(v) -> list:
     if v is None:
         return []
     if isinstance(v, list):
@@ -121,7 +120,7 @@ def utc_datetime_with_no_tz() -> datetime:
 
 
 # 把"2024-10-21T12:26:04+08:00"转化成utcdatetime
-def parse_datetime_from_str(s: str) -> Optional[datetime]:
+def parse_datetime_from_str(s: str) -> datetime | None:
     if not s or s == "0001-01-01T00:00:00Z":
         return None
     # 先把字符串转化成datetime
@@ -131,7 +130,7 @@ def parse_datetime_from_str(s: str) -> Optional[datetime]:
 
 
 # 取两个列表不同的元素，比如[1, 2, 3], [3, 4, 5] => [1, 2, 4, 5]
-def diff_list(a: List, b: List) -> List:
+def diff_list(a: list, b: list) -> list:
     return list(set(a).symmetric_difference(set(b)))
 
 
@@ -147,7 +146,7 @@ def unique_iterable(v: list | tuple | set) -> list:
 
 
 # 合并列表
-def merge_list(a: List, b: List) -> List:
+def merge_list(a: list, b: list) -> list:
     return list(set(a).union(set(b)))
 
 
@@ -228,7 +227,7 @@ def build_url(
         scheme: str = "http",
         netloc: str = "localhost",
         path: str = "/",
-        query: Optional[dict] = None,  # 仅支持字典或 None
+        query: dict | None = None,  # 仅支持字典或 None
         fragment: str = ""
 ):
     """

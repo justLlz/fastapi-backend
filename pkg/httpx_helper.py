@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Tuple
 
 import httpx
 from fastapi import HTTPException, status
@@ -10,7 +10,7 @@ class HTTPXClient:
     HTTP Client 基于 httpx 封装的工具类，支持 GET, POST, PUT, DELETE 请求。
     """
 
-    def __init__(self, base_url: str, timeout: int = 10, headers: Optional[Dict[str, str]] = None):
+    def __init__(self, base_url: str, timeout: int = 10, headers: dict[str, str] | None = None):
         """
         初始化 HTTP Client
         :param base_url: API 基础 URL
@@ -25,11 +25,11 @@ class HTTPXClient:
             self,
             method: str,
             endpoint: str,
-            params: Optional[Dict[str, Any]] = None,
-            data: Optional[Union[Dict[str, Any], str]] = None,
-            json: Optional[Dict[str, Any]] = None,
-            headers: Optional[Dict[str, str]] = None,
-            timeout: Optional[int] = None,
+            params: dict[str, Any] | None = None,
+            data: dict[str, Any] | str | None = None,
+            json: dict[str, Any] | None = None,
+            headers: dict[str, str] | None = None,
+            timeout: int | None = None,
     ) -> httpx.Response:
         """
         统一的请求方法
@@ -71,12 +71,12 @@ class HTTPXClient:
             self,
             method: str,
             endpoint: str,
-            params: Optional[Dict[str, Any]] = None,
-            data: Optional[Union[Dict[str, Any], str]] = None,
-            json: Optional[Dict[str, Any]] = None,
-            headers: Optional[Dict[str, str]] = None,
-            timeout: Optional[int] = None,
-    ) -> Tuple[int, Union[Dict[str, Any], str, None], Optional[str]]:
+            params: dict[str, Any] | None = None,
+            data: dict[str, Any] | str | None = None,
+            json: dict[str, Any] | None = None,
+            headers: dict[str, str] | None = None,
+            timeout: int | None = None,
+    ) -> Tuple[int, dict[str, Any] | str | None, str | None]:
         """
         统一的请求方法
         :param method: 请求方法 (GET, POST, PUT, DELETE)
@@ -130,8 +130,8 @@ class HTTPXClient:
             logger.error(f"UnexpectedError: {repr(exc)}")
             return 500, None, f"UnexpectedError: {exc}"
 
-    async def get(self, endpoint: str, params: Optional[Dict[str, Any]] = None,
-                  headers: Optional[Dict[str, str]] = None) -> Any:
+    async def get(self, endpoint: str, params: dict[str, Any] | None = None,
+                  headers: dict[str, str] | None = None) -> Any:
         """
         GET 请求
         :param endpoint: 接口路径
@@ -142,9 +142,9 @@ class HTTPXClient:
         response = await self._request("GET", endpoint, params=params, headers=headers)
         return response.json()
 
-    async def post(self, endpoint: str, json: Optional[Dict[str, Any]] = None,
-                   data: Optional[Union[Dict[str, Any], str]] = None,
-                   headers: Optional[Dict[str, str]] = None) -> Any:
+    async def post(self, endpoint: str, json: dict[str, Any] | None = None,
+                   data: dict[str, Any] | str | None = None,
+                   headers: dict[str, str] | None = None) -> Any:
         """
         POST 请求
         :param endpoint: 接口路径
@@ -156,9 +156,9 @@ class HTTPXClient:
         response = await self._request("POST", endpoint, json=json, data=data, headers=headers)
         return response.json()
 
-    async def put(self, endpoint: str, json: Optional[Dict[str, Any]] = None,
-                  data: Optional[Union[Dict[str, Any], str]] = None,
-                  headers: Optional[Dict[str, str]] = None) -> Any:
+    async def put(self, endpoint: str, json: dict[str, Any] | None = None,
+                  data: dict[str, Any] | str | None = None,
+                  headers: dict[str, str] | None = None) -> Any:
         """
         PUT 请求
         :param endpoint: 接口路径
@@ -170,8 +170,8 @@ class HTTPXClient:
         response = await self._request("PUT", endpoint, json=json, data=data, headers=headers)
         return response.json()
 
-    async def delete(self, endpoint: str, json: Optional[Dict[str, Any]] = None,
-                     headers: Optional[Dict[str, str]] = None) -> Any:
+    async def delete(self, endpoint: str, json: dict[str, Any] | None = None,
+                     headers: dict[str, str] | None = None) -> Any:
         """
         DELETE 请求
         :param endpoint: 接口路径

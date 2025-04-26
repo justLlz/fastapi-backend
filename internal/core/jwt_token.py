@@ -1,5 +1,4 @@
 from datetime import timedelta, timezone, datetime
-from typing import Optional
 
 import jwt
 from loguru import logger
@@ -7,7 +6,7 @@ from loguru import logger
 from internal.config.setting import setting
 
 
-async def verify_jwt_token(token: str) -> (Optional[int], bool):
+async def verify_jwt_token(token: str) -> (int | None, bool):
     """
     验证 Token = request.headers.get("Authorization")
     """

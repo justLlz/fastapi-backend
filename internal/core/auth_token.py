@@ -1,11 +1,9 @@
-from typing import Optional
-
-from pkg import token_list_cache_key
 from internal.utils.cache_helpers import Cache
+from pkg import token_list_cache_key
 from pkg.logger_helper import logger
 
 
-async def verify_token(token: str) -> (Optional[dict], bool):
+async def verify_token(token: str) -> (dict | None, bool):
     user_data: dict = await Cache.get_token_value(token)
     if user_data is None:
         logger.warning("Token verification failed: token not found")

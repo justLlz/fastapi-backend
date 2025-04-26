@@ -1,7 +1,7 @@
 import asyncio
 import time
 import uuid
-from typing import Optional, Any
+from typing import Any
 
 from fastapi import HTTPException, status
 from loguru import logger
@@ -13,7 +13,7 @@ from internal.infra.db import get_redis
 
 class Cache:
     @classmethod
-    async def set_token(cls, token: str, user_data: dict, ex: Optional[int] = 10800):
+    async def set_token(cls, token: str, user_data: dict, ex: int = 10800):
         """
         设置会话键值，并设置过期时间。
         """
@@ -50,7 +50,7 @@ class Cache:
 
     # 设置键值对
     @classmethod
-    async def set_value(cls, key: str, value: Any, ex: Optional[int] = None) -> bool:
+    async def set_value(cls, key: str, value: Any, ex: int | None = None) -> bool:
         """
         设置键值对并可选设置过期时间。
         """
@@ -63,7 +63,7 @@ class Cache:
 
     # 获取键值
     @classmethod
-    async def get_value(cls, key: str) -> Optional[dict | Any]:
+    async def get_value(cls, key: str) -> dict | Any:
         """
         获取键值。
         """
@@ -151,7 +151,7 @@ class Cache:
 
     # 获取哈希表中的值
     @classmethod
-    async def get_hash(cls, name: str, key: str) -> Optional[str]:
+    async def get_hash(cls, name: str, key: str) -> str | None:
         """
         从 Redis 哈希表中获取值。
         """
@@ -194,7 +194,7 @@ class Cache:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     @classmethod
-    async def left_pop_list(cls, name: str) -> Optional[str]:
+    async def left_pop_list(cls, name: str) -> str | None:
         """
         从列表左侧弹出一个值。
         """
@@ -248,7 +248,7 @@ class Cache:
             expire_ms: int = 10000,
             timeout_ms: int = 5000,
             retry_interval_ms: int = 100
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         获取分布式锁
         :param lock_key: 锁的键名

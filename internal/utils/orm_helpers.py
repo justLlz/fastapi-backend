@@ -1,5 +1,5 @@
 import traceback
-from typing import Any, Optional, Tuple, Type, Union
+from typing import Any, Type
 
 from fastapi import HTTPException
 from sqlalchemy import (ColumnElement, ColumnExpressionArgument,
@@ -40,7 +40,7 @@ class _BaseBuilder:
                                 f"model_cls must be a subclass of ModelMixin, and actually gets: {type(model_cls)}")
 
         self._model_cls: Type[MixinModelType] = model_cls
-        self._stmt: Union[Select, Delete, Update, None] = None
+        self._stmt: Select | Delete | Update | None = None
 
     # 单独的操作符方法
     def eq(self, column: InstrumentedAttribute, value: Any) -> "_BaseBuilder":
@@ -79,7 +79,7 @@ class _BaseBuilder:
         """为空检查条件"""
         return self.where(column.is_(None))
 
-    def between(self, column: InstrumentedAttribute, range_values: Tuple[Any, Any]) -> "_BaseBuilder":
+    def between(self, column: InstrumentedAttribute, range_values: tuple[Any, Any]) -> "_BaseBuilder":
         """范围查询条件"""
         return self.where(column.between(range_values[0], range_values[1]))
 
@@ -191,7 +191,7 @@ class _QueryBuilder(_BaseBuilder):
             model_cls: Type[ModelMixin],
             *,
             include_deleted: bool = False,
-            initial_where: Optional[ColumnElement] = None
+            initial_where: ColumnElement | None = None
     ):
         """
         查询构建器基础类
@@ -231,7 +231,7 @@ class _QueryBuilder(_BaseBuilder):
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return [i for i in data]
 
-    async def scalar_one_or_none(self) -> Optional[MixinModelType]:
+    async def scalar_one_or_none(self) -> MixinModelType | None:
         async with get_session() as sess:
             try:
                 result = await sess.execute(self._stmt)
@@ -241,7 +241,7 @@ class _QueryBuilder(_BaseBuilder):
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return data
 
-    async def scalars_first(self) -> Optional[MixinModelType]:
+    async def scalars_first(self) -> MixinModelType | None:
         async with get_session() as sess:
             try:
                 result = await sess.execute(self._stmt)
@@ -251,13 +251,13 @@ class _QueryBuilder(_BaseBuilder):
                 raise HTTPException(status_code=500, detail=str(e)) from e
         return data
 
-    async def get_or_exec(self) -> Optional[MixinModelType]:
+    async def get_or_exec(self) -> MixinModelType | None:
         data = await self.get_or_none()
         if not data:
             raise HTTPException(status_code=404, detail="not found")
         return data
 
-    async def get_or_none(self) -> Optional[MixinModelType]:
+    async def get_or_none(self) -> MixinModelType | None:
         data = await self.scalar_one_or_none()
         return data
 
@@ -265,7 +265,7 @@ class _QueryBuilder(_BaseBuilder):
         self._stmt = self._stmt.order_by(asc(col) if sort == _Sort.ASC else desc(col))
         return self
 
-    def paginate(self, page: Optional[int] = None, limit: Optional[int] = None) -> "_QueryBuilder":
+    def paginate(self, page: int = 1, limit: int = 10) -> "_QueryBuilder":
         if page and limit:
             self._stmt = self._stmt.offset((page - 1) * limit).limit(limit)
         return self
@@ -275,7 +275,7 @@ class _CountBuilder(_BaseBuilder):
     def __init__(
             self,
             model_cls: Type[ModelMixin],
-            count_column: Optional[InstrumentedAttribute] = None,
+            count_column: InstrumentedAttribute | None = None,
             *,
             include_deleted: bool = False
     ):
@@ -318,8 +318,8 @@ class _UpdateBuilder(_BaseBuilder):
     def __init__(
             self,
             *,
-            model_cls: Optional[Type[ModelMixin]] = None,
-            model_ins: Optional[ModelMixin] = None
+            model_cls: Type[ModelMixin] | None = None,
+            model_ins: ModelMixin | None = None
     ):
         """
         更新构建器初始化
@@ -437,8 +437,8 @@ class _DeleteBuilder(_BaseBuilder):
     def __init__(
             self,
             *,
-            model_cls: Optional[Type[ModelMixin]] = None,
-            model_instance: Optional[ModelMixin] = None
+            model_cls: Type[ModelMixin] | None = None,
+            model_instance: ModelMixin | None = None
     ):
         """
         删除构建器初始化
@@ -455,7 +455,7 @@ class _DeleteBuilder(_BaseBuilder):
         if (model_cls is None) == (model_instance is None):
             raise HTTPException(500, "must and can only provide one of model_cls or model_instance")
 
-        model_cls: Optional[Type[ModelMixin]] = model_cls if model_cls is not None else model_instance.__class__
+        model_cls: Type[ModelMixin] | None = model_cls if model_cls is not None else model_instance.__class__
         # 调用父类初始化
         super().__init__(model_cls=model_cls)
 
@@ -532,7 +532,7 @@ def _validate_model_ins(model_ins: object, expected_type: type = ModelMixin):
 def new_cls_querier(model_cls: Type[ModelMixin],
                     *,
                     include_deleted: bool = False,
-                    initial_where: Optional[ColumnElement] = None) -> _QueryBuilder:
+                    initial_where: ColumnElement | None = None) -> _QueryBuilder:
     """创建一个新的查询器实例
 
     参数:
