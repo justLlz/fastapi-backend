@@ -120,7 +120,7 @@ def utc_datetime_with_no_tz() -> datetime:
 
 
 # 把"2024-10-21T12:26:04+08:00"转化成utcdatetime
-def parse_datetime_from_str(s: str) -> datetime | None:
+def parse_datetime_from_str(s: str) -> datetime.datetime | None:
     if not s or s == "0001-01-01T00:00:00Z":
         return None
     # 先把字符串转化成datetime
