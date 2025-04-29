@@ -61,6 +61,13 @@ uv pip list
 清理缓存
 uv clean
 
+导出到requirements.txt
+uv export --output-file requirements.txt
+--output-file：指定输出文件路径。
+--no-header（可选）：不写入 uv 的注释头信息。
+--frozen（可选）：生成带哈希值的冻结格式。
+--dev（可选）：包含开发依赖。
+
 重建环境
 rm -rf .venv && uv sync
 
