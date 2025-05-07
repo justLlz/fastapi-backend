@@ -1,49 +1,46 @@
 """
 该目录主要用于数据库操作
 """
-from typing import Type
-
 from fastapi import HTTPException
 
 from internal.models import ModelMixin
-from internal.utils.orm_helpers import new_cls_querier, new_cls_updater, new_counter, new_deleter, new_ins_updater
+from internal.utils.orm_helpers import (new_cls_querier, new_cls_updater, new_counter,
+                                        new_deleter, new_ins_updater)
 
 
 class BaseDao:
+    _model_cls: type[ModelMixin] = None
 
-    @classmethod
-    def querier(cls, model_cls: Type[ModelMixin]):
-        return new_cls_querier(model_cls)
+    @property
+    def querier(self):
+        return new_cls_querier(self._model_cls)
 
-    @classmethod
-    def querier_include_deleted(cls, model_cls: Type[ModelMixin]):
-        return new_cls_querier(model_cls, include_deleted=True)
+    @property
+    def querier_include_deleted(self):
+        return new_cls_querier(self._model_cls, include_deleted=True)
 
-    @classmethod
-    def updater(cls, *, model_cls: Type[ModelMixin] = None, model_ins: ModelMixin = None):
-        if (model_cls is None) == (model_ins is None):
-            raise HTTPException(500, "must and can only provide one of model_class or model_instance")
+    @property
+    def cls_updater(self):
+        return new_cls_updater(self._model_cls)
 
-        if model_cls:
-            return cls.cls_updater(model_cls=model_cls)
+    @property
+    def counter(self):
+        return new_counter(self._model_cls)
 
-        if model_ins:
-            return cls.ins_updater(model_ins=model_ins)
+    @property
+    def deleter(self):
+        return new_deleter(self._model_cls)
 
-        return None
-
-    @classmethod
-    def cls_updater(cls, model_cls: Type[ModelMixin]):
-        return new_cls_updater(model_cls=model_cls)
-
-    @classmethod
-    def ins_updater(cls, model_ins: ModelMixin):
+    @staticmethod
+    def ins_updater(model_ins: ModelMixin):
         return new_ins_updater(model_ins=model_ins)
 
-    @classmethod
-    def counter(cls, model_cls: Type[ModelMixin]):
-        return new_counter(model_cls)
+    async def get_by_oid_or_none(self, oid: int):
+        return await self.querier.eq(self._model_cls.id, oid).get_or_none()
 
-    @classmethod
-    def deleter(cls, *, model_cls: Type[ModelMixin] = None):
-        return new_deleter(model_cls=model_cls)
+    async def get_by_oid_or_exec(self, oid: int):
+        ins = await self.get_by_oid_or_none(oid)
+        if not ins:
+            raise HTTPException(status_code=404, detail=f"{self._model_cls.__name__} not found for {oid}")
+
+        return ins
