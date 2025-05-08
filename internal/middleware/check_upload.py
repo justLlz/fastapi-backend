@@ -13,5 +13,4 @@ class LimitUploadSizeMiddleware(BaseHTTPMiddleware):
             body = await request.body()
             if len(body) > MAX_UPLOAD_SIZE:
                 return response_factory.resp_413(message="上传文件过大")
-        response = await call_next(request)
-        return response
+        return await call_next(request)

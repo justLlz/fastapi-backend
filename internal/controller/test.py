@@ -21,7 +21,7 @@ router = APIRouter(prefix="/test", tags=["test"])
 async def test_raise_exception(_: Request):
     # 如果触发fastapi.HTTPException会有限被main.py的exception_handler捕获，
     # 如果是Exception会被middleware的exception.py捕获
-    raise HTTPException(500, "test_raise_exception")
+    raise Exception(500, "test_raise_exception")
 
 
 @router.get("/test_custom_response_class_basic_types")

@@ -49,13 +49,9 @@ def register_middleware(app: FastAPI):
     from starlette.middleware.gzip import GZipMiddleware
     app.add_middleware(GZipMiddleware)
 
-    # 5. 异常处理中间件：处理异常，返回统一的错误响应
-    from internal.middleware.exception import ExceptionHandlingMiddleware
-    app.add_middleware(ExceptionHandlingMiddleware)
-
     # 4. 限制上传文件大小
-    from internal.middleware.upload_size import LimitUploadSizeMiddleware
-    app.add_middleware(LimitUploadSizeMiddleware)
+    # from internal.middleware.upload_size import LimitUploadSizeMiddleware
+    # app.add_middleware(LimitUploadSizeMiddleware)
 
     # 3. 认证中间件：校验 Token，确保只有合法用户访问 API
     from internal.middleware.auth import AuthMiddleware
