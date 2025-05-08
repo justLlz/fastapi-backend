@@ -35,10 +35,10 @@ fastapi-backend/
 uv add -r requirements.txt
 
 显示所有可安装/已安装版本 
- uv python list
+uv python list
  
- 显示已经安装的版本
- uv python find
+显示已经安装的版本
+uv python find
  
 初始化环境
 uv venv .venv --python 3.12.9
