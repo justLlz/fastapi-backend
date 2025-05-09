@@ -15,7 +15,7 @@ class ExceptionHandlingMiddleware:
             await self.app(scope, receive, send)
             return
 
-        request = Request(scope, receive=receive)
+        _ = Request(scope, receive=receive)
         try:
             await self.app(scope, receive, send)
         except BaseException as exc:

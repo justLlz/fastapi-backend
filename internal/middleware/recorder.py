@@ -1,5 +1,4 @@
 import time
-import traceback
 import uuid
 
 from fastapi import Request
@@ -7,7 +6,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from pkg.logger_helper import logger
-from pkg.resp_helper import response_factory
 
 
 class RecorderMiddleware(BaseHTTPMiddleware):

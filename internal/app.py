@@ -50,8 +50,8 @@ def register_middleware(app: FastAPI):
     app.add_middleware(GZipMiddleware)
 
     # 5. 限制上传文件大小
-    # from internal.middleware.upload_size import LimitUploadSizeMiddleware
-    # app.add_middleware(LimitUploadSizeMiddleware)
+    from internal.middleware.check_upload import LimitUploadSizeMiddleware
+    app.add_middleware(LimitUploadSizeMiddleware)
 
     # 4. 认证中间件：校验 Token，确保只有合法用户访问 API
     from internal.middleware.auth import AuthMiddleware
