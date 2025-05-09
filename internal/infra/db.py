@@ -38,7 +38,6 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         except Exception as e:
             # Check if a transaction is active before rolling back
             if session.is_active:
-                logger.warning(f"Rolling back transaction due to exception: {type(e).__name__} - {repr(e)}")
                 await session.rollback()
             raise
 
