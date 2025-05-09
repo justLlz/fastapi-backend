@@ -49,6 +49,10 @@ def register_middleware(app: FastAPI):
     from starlette.middleware.gzip import GZipMiddleware
     app.add_middleware(GZipMiddleware)
 
+    from internal.middleware.exception import ExceptionHandlingMiddleware
+    # 异常处理中间件（需继承 BaseHTTPMiddleware）
+    app.add_middleware(ExceptionHandlingMiddleware)
+
     # 4. 限制上传文件大小
     # from internal.middleware.upload_size import LimitUploadSizeMiddleware
     # app.add_middleware(LimitUploadSizeMiddleware)

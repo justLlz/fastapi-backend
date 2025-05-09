@@ -21,7 +21,7 @@ router = APIRouter(prefix="/test", tags=["test"])
 async def test_raise_exception(_: Request):
     # 如果触发fastapi.HTTPException会有限被main.py的exception_handler捕获，
     # 如果是Exception会被middleware的exception.py捕获
-    raise Exception(500, "test_raise_exception")
+    raise Exception("test_raise_exception")
 
 
 @router.get("/test_custom_response_class_basic_types")
@@ -234,7 +234,9 @@ async def test_dao():
     except Exception as e:
         logger.error(f"test dao error: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e)) from e
+    else:
+        return response_factory.resp_200()
     finally:
         test_user.deleted_at = datetime.now()
         await test_user.save()
-        return response_factory.resp_200(data="test dao success")
+
