@@ -58,7 +58,7 @@ def register_middleware(app: FastAPI):
     app.add_middleware(AuthMiddleware)
 
     from internal.middleware.exception import ExceptionHandlingMiddleware
-    # 3. 异常处理中间件（需继承 BaseHTTPMiddleware）
+    # 3. 异常处理中间件
     app.add_middleware(ExceptionHandlingMiddleware)
 
     # 2. 日志中间件：记录请求和响应的日志，监控 API 性能和请求流
