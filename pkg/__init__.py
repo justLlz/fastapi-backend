@@ -135,14 +135,20 @@ def diff_list(a: list, b: list) -> list:
 
 
 # 列表去重
-def unique_iterable(v: list | tuple | set) -> list:
-    match v:
-        case list() | tuple():
-            return list(dict.fromkeys(v))
-        case set():
-            return list(v)
-        case _:
-            raise ValueError("a must be list, tuple or set")
+def unique_iterable(iterable: list | tuple | set) -> list:
+    """
+    对可迭代对象进行去重，并保持原有顺序。
+
+    :param iterable: 输入的可迭代对象（list, tuple 或 set）
+    :return: 去重后的 list
+    :raises ValueError: 如果输入不是 list, tuple 或 set 类型
+    """
+    if isinstance(iterable, (list, tuple)):
+        return list(dict.fromkeys(iterable))
+    elif isinstance(iterable, set):
+        return sorted(iterable)  # 若需保留顺序，set 不合适
+    else:
+        raise ValueError("Input must be a list, tuple, or set")
 
 
 # 合并列表
