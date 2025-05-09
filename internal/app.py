@@ -49,17 +49,17 @@ def register_middleware(app: FastAPI):
     from starlette.middleware.gzip import GZipMiddleware
     app.add_middleware(GZipMiddleware)
 
-    from internal.middleware.exception import ExceptionHandlingMiddleware
-    # 异常处理中间件（需继承 BaseHTTPMiddleware）
-    app.add_middleware(ExceptionHandlingMiddleware)
-
-    # 4. 限制上传文件大小
+    # 5. 限制上传文件大小
     # from internal.middleware.upload_size import LimitUploadSizeMiddleware
     # app.add_middleware(LimitUploadSizeMiddleware)
 
-    # 3. 认证中间件：校验 Token，确保只有合法用户访问 API
+    # 4. 认证中间件：校验 Token，确保只有合法用户访问 API
     from internal.middleware.auth import AuthMiddleware
     app.add_middleware(AuthMiddleware)
+
+    from internal.middleware.exception import ExceptionHandlingMiddleware
+    # 3. 异常处理中间件（需继承 BaseHTTPMiddleware）
+    app.add_middleware(ExceptionHandlingMiddleware)
 
     # 2. 日志中间件：记录请求和响应的日志，监控 API 性能和请求流
     from internal.middleware.recorder import RecorderMiddleware
