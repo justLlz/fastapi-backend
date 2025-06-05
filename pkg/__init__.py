@@ -111,8 +111,8 @@ def get_utc_timestamp() -> int:
     return int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
 
 
-def utc_datetime() -> datetime:
-    return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
+def get_utc_without_tzinfo() -> datetime:
+    return datetime.datetime.now(datetime.UTC).replace(microsecond=0, tzinfo=None)
 
 
 def utc_datetime_with_no_tz() -> datetime:

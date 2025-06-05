@@ -62,7 +62,6 @@ class AsyncTaskManager:
             return False
         finally:
             _ = await cache.release_lock(lock_key, lock_id)
-            return None
 
     async def cancel_task(self, task_id: str):
         """取消指定任务"""
