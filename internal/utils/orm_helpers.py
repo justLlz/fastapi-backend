@@ -263,8 +263,28 @@ class _QueryBuilder(_BaseBuilder):
         data = await self.scalar_one_or_none()
         return data
 
-    def order_by(self, col: InstrumentedAttribute, sort: str = _Sort.DESC) -> "_QueryBuilder":
-        self._stmt = self._stmt.order_by(asc(col) if sort == _Sort.ASC else desc(col))
+    def desc_(self, col: InstrumentedAttribute) -> "_QueryBuilder":
+        self._stmt = self._stmt.order_by(desc(col))
+        return self
+
+    def asc_(self, col: InstrumentedAttribute) -> "_QueryBuilder":
+        self._stmt = self._stmt.order_by(asc(col))
+        return self
+
+    def group_by(self, *cols: InstrumentedAttribute) -> "_QueryBuilder":
+        """
+        添加 GROUP BY 子句到查询语句中
+
+        Args:
+            cols: 要分组的列（可以是多个）
+
+        Returns:
+            _QueryBuilder: 自身实例，支持链式调用
+        """
+        if not cols:
+            return self
+
+        self._stmt = self._stmt.group_by(*cols)
         return self
 
     def paginate(self, page: int = 1, limit: int = 10) -> "_QueryBuilder":

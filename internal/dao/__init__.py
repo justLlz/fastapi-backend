@@ -35,6 +35,10 @@ class BaseDao:
     def ins_updater(model_ins: ModelMixin):
         return new_ins_updater(model_ins=model_ins)
 
+    @property
+    def model_cls(self):
+        return self._model_cls
+
     async def get_by_oid_or_none(self, oid: int):
         return await self.querier.eq(self._model_cls.id, oid).get_or_none()
 
