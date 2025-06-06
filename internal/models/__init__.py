@@ -66,6 +66,11 @@ class ModelMixin(Base):
             logger.error(f"{self.__class__.__name__} update error: {e}")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    async def soft_delete(self):
+        await self.update(
+            **{self.deleted_at_column_name(): get_utc_without_tzinfo()}
+        )
+
     @classmethod
     def create(cls, **kwargs) -> "ModelMixin":
         cur_datetime = get_utc_without_tzinfo()
@@ -169,13 +174,6 @@ class ModelMixin(Base):
                 detail=f"{column_name} is not a real table column of {cls.__name__}",
             )
         return getattr(cls, column_name)
-
-    @staticmethod
-    def is_utc_column(column_name: str):
-        if column_name in ["created_at", "updated_at", "deleted_at"]:
-            return True
-        else:
-            return False
 
     def _set_col_maybe_none(self, column_name: str, default_value: Any):
         column: InstrumentedAttribute = self.get_column_or_none(column_name)
