@@ -5,7 +5,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
-from fastapi import HTTPException, status
+
 from pkg.logger_helper import logger
 
 
@@ -15,7 +15,7 @@ class HTTPXClient:
     自动处理 JSON、form-data、文件上传，以及错误转换为 HTTPException。
     """
 
-    def __init__(self, timeout: int = 10, headers: dict[str, str] | None = None):
+    def __init__(self, timeout: int = 60, headers: dict[str, str] | None = None):
         """
         :param timeout: 请求超时时间，默认 10 秒
         :param headers: 公共请求头，默认 {'content-type': 'application/json'}
@@ -45,13 +45,15 @@ class HTTPXClient:
         :param headers: 单次请求头
         :param timeout: 单次请求超时
         """
+        logger.info(f"Requesting: method={method}, url={url}")
+        url = url.strip()
         try:
             combined_headers = {**self.headers, **(headers or {})}
             if files:
                 combined_headers.pop('content-type', None)  # 让 httpx 自动设置 multipart/form-data
 
             async with httpx.AsyncClient(timeout=timeout or self.timeout) as client:
-                response = await client.request(
+                response: httpx.Response = await client.request(
                     method=method.upper(),
                     url=url,
                     params=params,
@@ -65,15 +67,15 @@ class HTTPXClient:
 
         except httpx.HTTPStatusError as exc:
             logger.error(f"HTTPxStatusError: {exc.response.status_code} - {exc.response.text}")
-            raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text)
+            raise exc
 
         except httpx.RequestError as exc:
-            logger.error(f"HTTPxRequestError: {str(exc)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+            logger.error(f"HTTPxRequestError: {exc}")
+            raise exc
 
         except Exception as exc:
-            logger.error(f"UnexpectedError: {str(exc)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
+            logger.error(f"UnexpectedError: {exc}")
+            raise exc
 
     async def request_and_return(
             self,
@@ -87,14 +89,14 @@ class HTTPXClient:
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
     ) -> tuple[int, dict[str, Any] | str | None, str]:
-        logger.info(f"Requesting {method} {url}")
+        logger.info(f"Requesting: method={method}, url={url}")
         try:
             combined_headers = {**self.headers, **(headers or {})}
             if files:
                 combined_headers.pop('content-type', None)
 
             async with httpx.AsyncClient(timeout=timeout or self.timeout) as client:
-                response = await client.request(
+                response: httpx.Response = await client.request(
                     method=method.upper(),
                     url=url,
                     params=params,
@@ -103,7 +105,6 @@ class HTTPXClient:
                     files=files,
                     headers=combined_headers,
                 )
-                response.raise_for_status()
 
                 try:
                     resp_data = response.json()

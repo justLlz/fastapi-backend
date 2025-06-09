@@ -30,8 +30,8 @@ async def read_json_file(file_path: str) -> Any:
         logger.error(f"{file_path} not found")
         raise
     except orjson.JSONDecodeError as e:
-        logger.error(f"invalid JSON in {file_path}: {repr(e)}")
+        logger.error(f"invalid JSON in {file_path}: {e}")
         raise
     except Exception as e:
-        logger.error(f"failed to read {file_path}: {repr(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"failed to read {file_path}: {e}")
+        raise
