@@ -10,3 +10,7 @@ class AppHTTPException(Exception):
         self.status_code = status_code
         self.detail = detail
         self.headers = headers
+
+
+class AppIgnoreException(Exception):
+    pass
