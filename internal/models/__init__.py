@@ -17,6 +17,8 @@ class ModelMixin(Base):
     __abstract__ = True
 
     id = Column(BigInteger, primary_key=True)
+    creator_id = Column(BigInteger, nullable=False)
+    updater_id = Column(BigInteger, nullable=True, default=None, server_default=None)
     created_at = Column(DateTime(timezone=False), nullable=False)
     updated_at = Column(DateTime(timezone=False), nullable=True, default=None, server_default=None)
     deleted_at = Column(DateTime(timezone=False), nullable=True, default=None, server_default=None)
@@ -78,13 +80,11 @@ class ModelMixin(Base):
 
         if "id" not in kwargs:
             instance.id = generate_snowflake_id()
-        if instance.has_creator_column():
+        if instance.has_creator_id_column():
             user_id = get_user_id_context_var()
             setattr(instance, instance.creator_id_column_name(), user_id)
         if instance.has_updater_id_column():
             setattr(instance, instance.updater_id_column_name(), None)
-        if instance.has_updated_at_column():
-            instance._set_col_maybe_none(instance.updated_at_column_name(), cur_datetime)
 
         instance.populate(**kwargs)
         return instance
@@ -141,7 +141,7 @@ class ModelMixin(Base):
         return cls.has_column(cls.updated_at_column_name())
 
     @classmethod
-    def has_creator_column(cls) -> bool:
+    def has_creator_id_column(cls) -> bool:
         """判断是否有创建人字段"""
         return cls.has_column(cls.creator_id_column_name())
 
