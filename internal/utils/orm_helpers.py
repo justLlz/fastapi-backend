@@ -168,7 +168,7 @@ class _BaseBuilder:
                 logger.warning(f"invalid column name: {column_name}, must be str")
                 continue
             # 获取 SQLAlchemy 列对象
-            column = self._model_cls.get_column_or_none(column_name)
+            column: InstrumentedAttribute = self._model_cls.get_column_or_none(column_name)
             if column is None:
                 continue
 
