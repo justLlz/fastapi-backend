@@ -4,7 +4,9 @@
 from fastapi import HTTPException
 
 from internal.models import ModelMixin
-from internal.utils.orm_helpers import (new_cls_querier, new_cls_updater, new_counter,
+from internal.utils.orm_helpers import (CountBuilder, DeleteBuilder, QueryBuilder, UpdateBuilder, new_cls_querier,
+                                        new_cls_updater,
+                                        new_counter,
                                         new_deleter, new_ins_updater)
 
 
@@ -12,23 +14,25 @@ class BaseDao:
     _model_cls: type[ModelMixin] = None
 
     @property
-    def querier(self):
+    def querier(self) -> QueryBuilder:
         return new_cls_querier(self._model_cls)
 
     @property
-    def querier_include_deleted(self):
+    def querier_include_deleted(self) -> QueryBuilder:
         return new_cls_querier(self._model_cls, include_deleted=True)
 
+    def sub_querier(self):
+
     @property
-    def cls_updater(self):
+    def cls_updater(self) -> UpdateBuilder:
         return new_cls_updater(self._model_cls)
 
     @property
-    def counter(self):
+    def counter(self) -> CountBuilder:
         return new_counter(self._model_cls)
 
     @property
-    def deleter(self):
+    def deleter(self) -> DeleteBuilder:
         return new_deleter(self._model_cls)
 
     @staticmethod

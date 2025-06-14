@@ -44,7 +44,7 @@ class ModelMixin(Base):
                 await sess.commit()
         except Exception as e:
             logger.error(f"{self.__class__.__name__} save error: {e}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            raise e
 
     async def update(self, **kwargs):
         for column_name, value in kwargs.items():
@@ -66,7 +66,7 @@ class ModelMixin(Base):
                 await sess.commit()
         except Exception as e:
             logger.error(f"{self.__class__.__name__} update error: {e}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            raise e
 
     async def soft_delete(self):
         await self.update(
@@ -169,16 +169,5 @@ class ModelMixin(Base):
     @classmethod
     def get_column_or_raise(cls, column_name: str) -> InstrumentedAttribute:
         if column_name not in cls.__table__.columns:
-            raise HTTPException(
-                400,
-                detail=f"{column_name} is not a real table column of {cls.__name__}",
-            )
+            raise Exception(f"{column_name} is not a real table column of {cls.__name__}")
         return getattr(cls, column_name)
-
-    def _set_col_maybe_none(self, column_name: str, default_value: Any):
-        column: InstrumentedAttribute = self.get_column_or_none(column_name)
-        if column:
-            if column.default is None or column.server_default is None:
-                setattr(self, column_name, None)
-            else:
-                setattr(self, column_name, default_value)

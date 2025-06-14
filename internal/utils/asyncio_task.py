@@ -27,13 +27,25 @@ class AsyncTaskManager:
 
         return coro_func_name
 
-    async def _run_task(self, task_id: str, coro_func: Callable[..., Awaitable[Any]], *args, **kwargs):
+    async def _run_task(self,
+                        task_id: str,
+                        coro_func: Callable[..., Awaitable[Any]],
+                        timeout: float | None = None,
+                        *args,
+                        **kwargs):
         coro_func_name = self._get_coro_func_name(coro_func)
         try:
             async with self.semaphore:
                 logger.info(f"Task {coro_func_name} {task_id} started.")
-                await coro_func(*args, **kwargs)
-                logger.info(f"Task {coro_func_name} {task_id} finished.")
+                if timeout is not None:
+                    try:
+                        await asyncio.wait_for(coro_func(*args, **kwargs), timeout=timeout)
+                    except asyncio.TimeoutError:
+                        logger.error(f"Task {coro_func_name} {task_id} timed out after {timeout} seconds.")
+                        return
+                else:
+                    await coro_func(*args, **kwargs)
+                    logger.info(f"Task {coro_func_name} {task_id} finished.")
         except asyncio.CancelledError:
             logger.info(f"Task {coro_func_name} {task_id} cancelled.")
         except Exception as e:
@@ -42,26 +54,48 @@ class AsyncTaskManager:
             async with self.lock:
                 del self.tasks[task_id]
 
-    async def add_task(self, task_id: str, coro_func: Callable[..., Awaitable[Any]], *args, **kwargs):
+    async def add_task(self,
+                       task_id: str,
+                       coro_func: Callable[..., Awaitable[Any]],
+                       timeout: float | None = None,
+                       *args,
+                       **kwargs):
         coro_func_name = self._get_coro_func_name(coro_func)
         lock_key = f"lock:{coro_func_name}:{task_id}"
-        if not (lock_id := await cache.acquire_lock(lock_key)):
+        lock_id = await cache.acquire_lock(lock_key)
+        if not lock_id:
             logger.info(f"{coro_func_name}, task_id: {task_id}, acquire_lock fail")
             return False
+
+        handle_result = False  # 统一返回
         try:
             async with self.lock:
-                """添加任务（避免重复任务）"""
                 if task_id in self.tasks:
                     logger.warning(f"Task {task_id} already exists.")
-                    return False  # 任务已存在
-                task = asyncio.create_task(self._run_task(task_id, coro_func, *args, **kwargs))
-                self.tasks[task_id] = task
-                return True
+                    handle_result = False
+                else:
+                    try:
+                        task = asyncio.create_task(self._run_task(task_id, coro_func, timeout=timeout, *args, **kwargs))
+                        self.tasks[task_id] = task
+                        handle_result = True
+                    except Exception as e:
+                        logger.error(f"Create task failed: {e}")
+                        handle_result = False
         except Exception as e:
             logger.error(f"Error adding task {coro_func_name} for {task_id}: {e}")
-            return False
+            handle_result = False
         finally:
-            _ = await cache.release_lock(lock_key, lock_id)
+            try:
+                await cache.release_lock(lock_key, lock_id)
+            except Exception as e:
+                logger.warning(f"release_lock fail: {e}")
+
+        return handle_result
+
+    async def add_task_with_timeout(self, task_id: str, coro_func: Callable[..., Awaitable[Any]], timeout: float, *args,
+                                    **kwargs):
+        wrapped_coro = asyncio.wait_for(coro_func(*args, **kwargs), timeout=timeout)
+        return await self.add_task(task_id, lambda: wrapped_coro)
 
     async def cancel_task(self, task_id: str):
         """取消指定任务"""

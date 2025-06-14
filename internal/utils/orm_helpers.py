@@ -187,7 +187,8 @@ class _BaseBuilder:
         return self
 
 
-class _QueryBuilder(_BaseBuilder):
+class QueryBuilder(_BaseBuilder):
+
     def __init__(
             self,
             model_cls: Type[ModelMixin],
@@ -263,15 +264,15 @@ class _QueryBuilder(_BaseBuilder):
         data = await self.scalar_one_or_none()
         return data
 
-    def desc_(self, col: InstrumentedAttribute) -> "_QueryBuilder":
+    def desc_(self, col: InstrumentedAttribute) -> "QueryBuilder":
         self._stmt = self._stmt.order_by(desc(col))
         return self
 
-    def asc_(self, col: InstrumentedAttribute) -> "_QueryBuilder":
+    def asc_(self, col: InstrumentedAttribute) -> "QueryBuilder":
         self._stmt = self._stmt.order_by(asc(col))
         return self
 
-    def group_by(self, *cols: InstrumentedAttribute) -> "_QueryBuilder":
+    def group_by(self, *cols: InstrumentedAttribute) -> "QueryBuilder":
         """
         添加 GROUP BY 子句到查询语句中
 
@@ -279,7 +280,7 @@ class _QueryBuilder(_BaseBuilder):
             cols: 要分组的列（可以是多个）
 
         Returns:
-            _QueryBuilder: 自身实例，支持链式调用
+            QueryBuilder: 自身实例，支持链式调用
         """
         if not cols:
             return self
@@ -287,13 +288,13 @@ class _QueryBuilder(_BaseBuilder):
         self._stmt = self._stmt.group_by(*cols)
         return self
 
-    def paginate(self, page: int = 1, limit: int = 10) -> "_QueryBuilder":
+    def paginate(self, page: int = 1, limit: int = 10) -> "QueryBuilder":
         if page and limit:
             self._stmt = self._stmt.offset((page - 1) * limit).limit(limit)
         return self
 
 
-class _CountBuilder(_BaseBuilder):
+class CountBuilder(_BaseBuilder):
     def __init__(
             self,
             model_cls: Type[ModelMixin],
@@ -336,7 +337,7 @@ class _CountBuilder(_BaseBuilder):
         return data
 
 
-class _UpdateBuilder(_BaseBuilder):
+class UpdateBuilder(_BaseBuilder):
     def __init__(
             self,
             *,
@@ -371,7 +372,7 @@ class _UpdateBuilder(_BaseBuilder):
             model_id_column: InstrumentedAttribute = self._model_cls.get_column_or_none("id")
             self._stmt = self._stmt.where(model_id_column == model_ins.id)
 
-    def update(self, **kwargs) -> "_UpdateBuilder":
+    def update(self, **kwargs) -> "UpdateBuilder":
         if not kwargs:
             return self
 
@@ -383,7 +384,7 @@ class _UpdateBuilder(_BaseBuilder):
 
         return self
 
-    def soft_delete(self) -> "_UpdateBuilder":
+    def soft_delete(self) -> "UpdateBuilder":
         """软删除更新"""
         if not self._model_cls.has_deleted_at_column():
             return self
@@ -446,7 +447,7 @@ class _UpdateBuilder(_BaseBuilder):
                 raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
 
 
-class _DeleteBuilder(_BaseBuilder):
+class DeleteBuilder(_BaseBuilder):
     """删除构建器，支持物理删除操作
 
     特性:
@@ -554,7 +555,7 @@ def _validate_model_ins(model_ins: object, expected_type: type = ModelMixin):
 def new_cls_querier(model_cls: Type[ModelMixin],
                     *,
                     include_deleted: bool = False,
-                    initial_where: ColumnElement | None = None) -> _QueryBuilder:
+                    initial_where: ColumnElement | None = None) -> QueryBuilder:
     """创建一个新的查询器实例
 
     参数:
@@ -564,10 +565,27 @@ def new_cls_querier(model_cls: Type[ModelMixin],
         查询器实例
     """
     _validate_model_cls(model_cls)
-    return _QueryBuilder(model_cls=model_cls, include_deleted=include_deleted, initial_where=initial_where)
+    return QueryBuilder(model_cls=model_cls, include_deleted=include_deleted, initial_where=initial_where)
 
 
-def new_cls_updater(model_cls: Type[ModelMixin]) -> _UpdateBuilder:
+def new_sub_querier(model_cls: Type[ModelMixin],
+                    *,
+                    sub_stmt: Select | None = None,
+                    include_deleted: bool = False,
+                    initial_where: ColumnElement | None = None) -> QueryBuilder:
+    """创建一个新的子查询器实例
+
+    参数:
+        model_cls: 要查询的模型类
+
+    返回:
+        查询器实例
+    """
+    _validate_model_cls(model_cls)
+    # todo introduce sub query
+    pass
+
+def new_cls_updater(model_cls: Type[ModelMixin]) -> UpdateBuilder:
     """创建一个基于模型类的更新器
 
     Args:
@@ -577,13 +595,13 @@ def new_cls_updater(model_cls: Type[ModelMixin]) -> _UpdateBuilder:
         HTTPException: 当输入无效时返回500错误
 
     Returns:
-        _UpdateBuilder: 更新器实例
+        UpdateBuilder: 更新器实例
     """
     _validate_model_cls(model_cls)
-    return _UpdateBuilder(model_cls=model_cls)
+    return UpdateBuilder(model_cls=model_cls)
 
 
-def new_ins_updater(model_ins: ModelMixin) -> _UpdateBuilder:
+def new_ins_updater(model_ins: ModelMixin) -> UpdateBuilder:
     """创建一个基于模型实例的更新器
 
     Args:
@@ -593,13 +611,13 @@ def new_ins_updater(model_ins: ModelMixin) -> _UpdateBuilder:
         HTTPException: 当输入无效时返回500错误
 
     Returns:
-        _UpdateBuilder: 更新器实例
+        UpdateBuilder: 更新器实例
     """
     _validate_model_ins(model_ins)
-    return _UpdateBuilder(model_ins=model_ins)
+    return UpdateBuilder(model_ins=model_ins)
 
 
-def new_deleter(model_cls: Type[ModelMixin]) -> _DeleteBuilder:
+def new_deleter(model_cls: Type[ModelMixin]) -> DeleteBuilder:
     """创建一个新的删除器实例
 
     参数:
@@ -609,10 +627,10 @@ def new_deleter(model_cls: Type[ModelMixin]) -> _DeleteBuilder:
         删除器实例
     """
     _validate_model_cls(model_cls)
-    return _DeleteBuilder(model_cls=model_cls)
+    return DeleteBuilder(model_cls=model_cls)
 
 
-def new_counter(model_cls: Type[ModelMixin]) -> _CountBuilder:
+def new_counter(model_cls: Type[ModelMixin]) -> CountBuilder:
     """创建一个新的计数器实例
 
     参数:
@@ -622,10 +640,10 @@ def new_counter(model_cls: Type[ModelMixin]) -> _CountBuilder:
         计数器实例
     """
     _validate_model_cls(model_cls)
-    return _CountBuilder(model_cls=model_cls)
+    return CountBuilder(model_cls=model_cls)
 
 
-def new_counter_column(model_cls: Type[ModelMixin], column_name: str, include_deleted=False) -> _CountBuilder:
+def new_counter_column(model_cls: Type[ModelMixin], column_name: str, include_deleted=False) -> CountBuilder:
     """创建一个新的计数器实例，针对特定的列
 
     参数:
@@ -637,4 +655,4 @@ def new_counter_column(model_cls: Type[ModelMixin], column_name: str, include_de
     """
     _validate_model_cls(model_cls)
     count_column = model_cls.get_column_or_raise(column_name)
-    return _CountBuilder(model_cls=model_cls, count_column=count_column, include_deleted=include_deleted)
+    return CountBuilder(model_cls=model_cls, count_column=count_column, include_deleted=include_deleted)
