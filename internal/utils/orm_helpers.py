@@ -2,7 +2,7 @@ from typing import Any, Type
 
 from sqlalchemy import (ColumnElement, ColumnExpressionArgument,
                         Delete, Select, Update, asc, delete, desc, func, or_, select, update)
-from sqlalchemy.orm import InstrumentedAttribute
+from sqlalchemy.orm import InstrumentedAttribute, aliased
 
 from internal.infra.db import get_session
 from internal.models import ModelMixin
@@ -127,7 +127,7 @@ class _BaseBuilder:
         elif operator == "between":
             if not isinstance(value, (list, tuple)) or len(value) != 2:
                 raise Exception("Operator between requires a list/tuple with two values",
-                                    )
+                                )
             return column.between(value[0], value[1])
         else:
             raise Exception(f"Unsupported operator: {operator}")
@@ -191,7 +191,9 @@ class QueryBuilder(_BaseBuilder):
             model_cls: Type[ModelMixin],
             *,
             include_deleted: bool = False,
-            initial_where: ColumnElement | None = None
+            initial_where: ColumnElement | None = None,
+            custom_stmt: Select | None = None,
+
     ):
         """
         查询构建器基础类
@@ -206,16 +208,19 @@ class QueryBuilder(_BaseBuilder):
         """
         super().__init__(model_cls=model_cls)
 
-        # 基础查询语句
-        self._stmt: Select = select(self._model_cls)
+        if custom_stmt is not None:
+            self._stmt: Select = custom_stmt
+        else:
+            # 基础查询语句
+            self._stmt: Select = select(self._model_cls)
 
-        # 默认过滤已删除记录
-        if not include_deleted and self._model_cls.has_deleted_at_column:
-            self._apply_soft_delete()
+            # 默认过滤已删除记录
+            if not include_deleted and self._model_cls.has_deleted_at_column:
+                self._apply_soft_delete()
 
-        # 添加初始WHERE条件
-        if initial_where is not None:
-            self._stmt = self._stmt.where(initial_where)
+            # 添加初始WHERE条件
+            if initial_where is not None:
+                self._stmt = self._stmt.where(initial_where)
 
     @property
     def select_stmt(self) -> Select:
@@ -517,7 +522,7 @@ class DeleteBuilder(_BaseBuilder):
 def _validate_model_cls(model_cls: type, expected_type: type = type, subclass_of: type = ModelMixin):
     """校验 model_cls 是否为指定的类型且是指定类的子类"""
     if model_cls is None:
-        raise Exception( "model_cls cannot be None")
+        raise Exception("model_cls cannot be None")
 
     if not isinstance(model_cls, expected_type):
         raise Exception(
@@ -533,7 +538,7 @@ def _validate_model_cls(model_cls: type, expected_type: type = type, subclass_of
 def _validate_model_ins(model_ins: object, expected_type: type = ModelMixin):
     """校验 model_ins 是否为指定的类型且不是 None"""
     if model_ins is None:
-        raise Exception( "model_ins cannot be None")
+        raise Exception("model_ins cannot be None")
 
     if not isinstance(model_ins, expected_type):
         raise Exception(
@@ -557,22 +562,30 @@ def new_cls_querier(model_cls: Type[ModelMixin],
     return QueryBuilder(model_cls=model_cls, include_deleted=include_deleted, initial_where=initial_where)
 
 
-def new_sub_querier(model_cls: Type[ModelMixin],
-                    *,
-                    sub_stmt: Select | None = None,
-                    include_deleted: bool = False,
-                    initial_where: ColumnElement | None = None) -> QueryBuilder:
+def new_sub_querier(
+        model_cls: Type[ModelMixin],
+        *,
+        sub_stmt: Select,
+        include_deleted: bool = False,
+        initial_where: ColumnElement | None = None
+) -> QueryBuilder:
     """创建一个新的子查询器实例
 
     参数:
         model_cls: 要查询的模型类
+        sub_stmt: 子查询语句
 
     返回:
         查询器实例
     """
     _validate_model_cls(model_cls)
-    # todo introduce sub query
-    pass
+    alias = aliased(model_cls, sub_stmt.subquery())
+    return QueryBuilder(
+        model_cls=model_cls,
+        include_deleted=include_deleted,
+        initial_where=initial_where,
+        custom_stmt=select(alias)
+    )
 
 
 def new_cls_updater(model_cls: Type[ModelMixin]) -> UpdateBuilder:
@@ -615,7 +628,7 @@ def new_counter(model_cls: Type[ModelMixin]) -> CountBuilder:
     return CountBuilder(model_cls=model_cls)
 
 
-def new_counter_column(model_cls: Type[ModelMixin], column_name: str, include_deleted=False) -> CountBuilder:
+def new_column_counter(model_cls: Type[ModelMixin], column_name: str, include_deleted=False) -> CountBuilder:
     """创建一个新的计数器实例，针对特定的列
 
     参数:
