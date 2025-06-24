@@ -1,82 +1,105 @@
 import hashlib
 import hmac
 import time
-from typing import Dict
+from typing import Any
 
-from fastapi import HTTPException, status
-
-from internal.config.setting import setting
 from pkg.logger_helper import logger
 
 
-class HMACSigner:
-    def __init__(self, secret_key: str, hash_algorithm: str = "sha256", timestamp_tolerance: int = 300):
+class SignatureAuthHelper:
+    SUPPORTED_HASH_ALGOS = {'sha256', 'sha1', 'md5'}  # 可扩展
+
+    def __init__(
+            self,
+            secret_key: str,
+            hash_algorithm: str = "sha256",
+            timestamp_tolerance: int = 300
+    ):
         """
-        初始化 HMAC 签名工具类
-        :param secret_key: 用于签名的密钥
-        :param hash_algorithm: 哈希算法，默认为 sha256
-        :param timestamp_tolerance: 时间戳容忍误差（秒），默认 300 秒
+        :param secret_key: 用于签名的密钥（建议环境变量管理）
+        :param hash_algorithm: 哈希算法（支持 sha256/sha1/md5）
+        :param timestamp_tolerance: 时间戳误差秒数，防止重放
         """
         self.secret_key = secret_key.encode("utf-8")
+        if hash_algorithm not in self.SUPPORTED_HASH_ALGOS:
+            raise ValueError(f"Unsupported hash_algorithm: {hash_algorithm}")
         self.hash_algorithm = hash_algorithm
         self.timestamp_tolerance = timestamp_tolerance
 
-    def generate_signature(self, data: Dict[str, str]) -> str:
+    def generate_signature(self, data: dict[str, Any]) -> str:
         """
-        生成签名
-        :param data: 需要签名的字典数据
+        生成签名字符串
+        :param data: 任意 k-v 数据
         :return: 签名字符串
         """
-        # 对数据进行排序，确保签名一致性
-        sorted_items = sorted(data.items())
-        message = "&".join(f"{k}={v}" for k, v in sorted_items).encode("utf-8")
-        # 生成 HMAC 签名
-        signature = hmac.new(self.secret_key, message, getattr(hashlib, self.hash_algorithm)).hexdigest()
-        return signature
+        try:
+            # 保证所有 value 都转为字符串
+            sorted_items = sorted((str(k), str(v)) for k, v in data.items())
+            message = "&".join(f"{k}={v}" for k, v in sorted_items).encode("utf-8")
+            signature = hmac.new(
+                self.secret_key,
+                message,
+                getattr(hashlib, self.hash_algorithm)
+            ).hexdigest()
+            return signature
+        except Exception as e:
+            logger.error(f"generate_signature error: {e}, data={data}")
+            raise
 
-    def verify_signature(self, data: Dict[str, str], signature: str) -> bool:
+    def verify_signature(self, data: dict[str, Any], signature: str) -> bool:
         """
         验证签名
-        :param data: 需要验证的字典数据
-        :param signature: 待验证的签名字符串
-        :return: 验签结果，True 表示验证通过
+        :param data: 原始数据
+        :param signature: 待校验签名
+        :return: True/False
         """
-        expected_signature = self.generate_signature(data)
-        return hmac.compare_digest(expected_signature, signature)
+        try:
+            expected_signature = self.generate_signature(data)
+            return hmac.compare_digest(expected_signature, signature)
+        except Exception as e:
+            logger.error(f"verify_signature error: {e}, data={data}, signature={signature}")
+            return False
 
-    def is_timestamp_valid(self, request_time: str) -> bool:
+    def verify_timestamp(self, request_time: str) -> bool:
         """
-        验证时间戳是否有效
-        :param request_time: 请求时间戳
-        :return:
+        校验 UTC 秒级时间戳是否过期
+        :param request_time: 字符串类型的 UTC 秒级时间戳
+        :return: True/False
         """
         try:
             request_time = int(request_time)
-            # 获取当前 UTC 时间戳
             current_time = int(time.time())
-            if (current_time - request_time) > self.timestamp_tolerance:
-                logger.error(f"invalid timestamp, request_time: {request_time}, current_time: {current_time}")
+            # 绝对容忍误差，双向防止时钟不同步
+            if abs(current_time - request_time) > self.timestamp_tolerance:
+                logger.warning(
+                    f"Timestamp not in tolerance, request_time: {request_time}, current_time: {current_time}, tolerance: {self.timestamp_tolerance}s"
+                )
                 return False
         except Exception as e:
-            logger.error(f"is_timestamp_valid failed: {repr(e)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            logger.error(f"verify_timestamp error: {e}, request_time={request_time}")
+            return False
+        return True
+
+    def verify(self, x_signature: str, x_timestamp: str, x_nonce: str) -> bool:
+        """
+        统一验签入口
+        :param x_signature: 签名字符串
+        :param x_timestamp: 时间戳（UTC秒）
+        :param x_nonce: 随机串
+        :return: True/False
+        """
+        if not self.verify_timestamp(x_timestamp):
+            logger.warning(f"Timestamp check failed: {x_timestamp}")
+            return False
+
+        data = {"timestamp": x_timestamp, "nonce": x_nonce}
+        if not self.verify_signature(data, x_signature):
+            logger.warning(f"Signature check failed, data={data}, signature={x_signature}")
+            return False
 
         return True
 
 
-async def verify_signature(x_signature: str, x_timestamp: str, x_nonce: str) -> bool:
-    """
-    验证签名
-    """
-    signer = HMACSigner(setting.SECRET_KEY)
-    # 检查时间戳，防止重放攻击
-    if not signer.is_timestamp_valid(x_timestamp):
-        logger.error(f"invalid timestamp: {x_timestamp}")
-        return False
-
-    # 检查签名是否有效
-    if not signer.verify_signature({"timestamp": x_timestamp, "nonce": x_nonce}, x_signature):
-        logger.error(f"invalid signature: timestamp: {x_timestamp}, nonce: {x_nonce}, signature: {x_signature}")
-        return False
-
-    return True
+# import os
+# hmac_signer = HMACSigner(os.getenv("HMAC_SECRET_KEY"))
+signature_auth_helper = SignatureAuthHelper("hqsk-ai-platform-xafcv01")
