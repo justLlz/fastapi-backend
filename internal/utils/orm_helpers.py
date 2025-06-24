@@ -1,11 +1,8 @@
-import traceback
 from typing import Any, Type
 
-from fastapi import HTTPException
 from sqlalchemy import (ColumnElement, ColumnExpressionArgument,
                         Delete, Select, Update, asc, delete, desc, func, or_, select, update)
 from sqlalchemy.orm import InstrumentedAttribute
-from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
 from internal.infra.db import get_session
 from internal.models import ModelMixin
@@ -129,11 +126,11 @@ class _BaseBuilder:
             return column.is_(None)
         elif operator == "between":
             if not isinstance(value, (list, tuple)) or len(value) != 2:
-                raise HTTPException(400, "Operator between requires a list/tuple with two values",
+                raise Exception("Operator between requires a list/tuple with two values",
                                     )
             return column.between(value[0], value[1])
         else:
-            raise HTTPException(400, f"Unsupported operator: {operator}")
+            raise Exception(f"Unsupported operator: {operator}")
 
     def _apply_soft_delete(self) -> None:
         """安全地添加软删除过滤条件"""
@@ -224,24 +221,24 @@ class QueryBuilder(_BaseBuilder):
     def select_stmt(self) -> Select:
         return self._stmt
 
-    async def scalars_all(self) -> list[MixinModelType]:
+    async def all(self) -> list[MixinModelType]:
         async with get_session() as sess:
             try:
                 result = await sess.execute(self._stmt)
                 data = result.scalars().all()
             except Exception as e:
-                logger.error(f"{self._model_cls.__name__} scalars_all error: {traceback.format_exc()}")
-                raise HTTPException(status_code=500, detail=str(e)) from e
+                logger.error(f"{self._model_cls.__name__} query all, err={e}")
+                raise e
         return [i for i in data]
 
-    async def scalar_one_or_none(self) -> MixinModelType | None:
+    async def first(self) -> MixinModelType | None:
         async with get_session() as sess:
             try:
                 result = await sess.execute(self._stmt)
-                data = result.scalar_one_or_none()
+                data = result.scalars().fitst()
             except Exception as e:
-                logger.error(f"{self._model_cls.__name__} scalar_one_or_none error: {traceback.format_exc()}")
-                raise HTTPException(status_code=500, detail=str(e)) from e
+                logger.error(f"{self._model_cls.__name__} query first, err={e}")
+                raise e
         return data
 
     async def scalars_first(self) -> MixinModelType | None:
@@ -251,17 +248,17 @@ class QueryBuilder(_BaseBuilder):
                 data = result.scalars().first()
             except Exception as e:
                 logger.error(f"{self._model_cls.__name__} scalars_first: {repr(e)}")
-                raise HTTPException(status_code=500, detail=str(e)) from e
+                raise e
         return data
 
     async def get_or_exec(self) -> MixinModelType | None:
         data = await self.get_or_none()
         if not data:
-            raise HTTPException(status_code=404, detail="not found")
+            raise Exception(f"{self._model_cls.__name__} not found")
         return data
 
     async def get_or_none(self) -> MixinModelType | None:
-        data = await self.scalar_one_or_none()
+        data = await self.first()
         return data
 
     def desc_(self, col: InstrumentedAttribute) -> "QueryBuilder":
@@ -329,12 +326,12 @@ class CountBuilder(_BaseBuilder):
     async def count(self) -> int:
         async with get_session() as sess:
             try:
-                exec_result = await sess.execute(self._stmt)
-                data = exec_result.scalar()
+                result = await sess.execute(self._stmt)
+                count = result.scalar()
             except Exception as e:
-                logger.error(f"{self._model_cls.__name__} count error: {repr(e)}")
-                raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
-        return data
+                logger.error(f"{self._model_cls.__name__} count, err={e}")
+                raise e
+        return count
 
 
 class UpdateBuilder(_BaseBuilder):
@@ -357,7 +354,7 @@ class UpdateBuilder(_BaseBuilder):
         """
         # 参数校验
         if (model_cls is None) == (model_ins is None):
-            raise HTTPException(500, "must and can only provide one of model_cls or model_instance")
+            raise Exception("must and can only provide one of model_cls or model_instance")
 
         model_cls = model_cls if model_cls is not None else model_ins.__class__
         # 调用父类初始化
@@ -443,8 +440,8 @@ class UpdateBuilder(_BaseBuilder):
                 await sess.execute(self.update_stmt.execution_options(synchronize_session=False))
                 await sess.commit()
             except Exception as e:
-                logger.error(f"{self._model_cls.__name__}: {repr(e)}")
-                raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)) from e
+                logger.error(f"{self._model_cls.__name__} error, err={e}")
+                raise e
 
 
 class DeleteBuilder(_BaseBuilder):
@@ -476,7 +473,7 @@ class DeleteBuilder(_BaseBuilder):
         """
         # 参数校验
         if (model_cls is None) == (model_instance is None):
-            raise HTTPException(500, "must and can only provide one of model_cls or model_instance")
+            raise Exception("must and can only provide one of model_cls or model_instance")
 
         model_cls: Type[ModelMixin] | None = model_cls if model_cls is not None else model_instance.__class__
         # 调用父类初始化
@@ -496,13 +493,8 @@ class DeleteBuilder(_BaseBuilder):
         return self._stmt
 
     async def execute(self) -> int:
-        """执行删除操作
-
-        返回:
-            删除的记录数
-
-        异常:
-            HTTPException: 当删除操作失败时抛出
+        """
+        执行删除操作
         """
         async with get_session() as sess:
             try:
@@ -518,24 +510,22 @@ class DeleteBuilder(_BaseBuilder):
                 return deleted_count
 
             except Exception as e:
-                logger.error(f"{self._model_cls.__name__} delete error: {traceback.format_exc()}")
-                raise HTTPException(500, f"Failed to delete records: {str(e)}") from e
+                logger.error(f"{self._model_cls.__name__} delete error, err={e}")
+                raise e
 
 
 def _validate_model_cls(model_cls: type, expected_type: type = type, subclass_of: type = ModelMixin):
     """校验 model_cls 是否为指定的类型且是指定类的子类"""
     if model_cls is None:
-        raise HTTPException(500, "model_cls cannot be None")
+        raise Exception( "model_cls cannot be None")
 
     if not isinstance(model_cls, expected_type):
-        raise HTTPException(
-            500,
+        raise Exception(
             f"model_cls must be a {expected_type.__name__}, got {type(model_cls).__name__}"
         )
 
     if not issubclass(model_cls, subclass_of):
-        raise HTTPException(
-            500,
+        raise Exception(
             f"model_cls must be a subclass of {subclass_of.__name__}, got {model_cls.__name__}"
         )
 
@@ -543,11 +533,10 @@ def _validate_model_cls(model_cls: type, expected_type: type = type, subclass_of
 def _validate_model_ins(model_ins: object, expected_type: type = ModelMixin):
     """校验 model_ins 是否为指定的类型且不是 None"""
     if model_ins is None:
-        raise HTTPException(500, "model_ins cannot be None")
+        raise Exception( "model_ins cannot be None")
 
     if not isinstance(model_ins, expected_type):
-        raise HTTPException(
-            500,
+        raise Exception(
             f"model_ins must be a {expected_type.__name__} instance, got {type(model_ins).__name__}"
         )
 
@@ -585,17 +574,9 @@ def new_sub_querier(model_cls: Type[ModelMixin],
     # todo introduce sub query
     pass
 
+
 def new_cls_updater(model_cls: Type[ModelMixin]) -> UpdateBuilder:
     """创建一个基于模型类的更新器
-
-    Args:
-        model_cls: 必须是 ModelMixin 的子类（不是实例）
-
-    Raises:
-        HTTPException: 当输入无效时返回500错误
-
-    Returns:
-        UpdateBuilder: 更新器实例
     """
     _validate_model_cls(model_cls)
     return UpdateBuilder(model_cls=model_cls)
@@ -603,15 +584,6 @@ def new_cls_updater(model_cls: Type[ModelMixin]) -> UpdateBuilder:
 
 def new_ins_updater(model_ins: ModelMixin) -> UpdateBuilder:
     """创建一个基于模型实例的更新器
-
-    Args:
-        model_ins: 必须是 ModelMixin 的非空实例
-
-    Raises:
-        HTTPException: 当输入无效时返回500错误
-
-    Returns:
-        UpdateBuilder: 更新器实例
     """
     _validate_model_ins(model_ins)
     return UpdateBuilder(model_ins=model_ins)

@@ -131,42 +131,42 @@ async def test_dao():
         logger.info(f"test eq success")
 
         # ne
-        ne_users = await new_cls_querier(User).ne(User.id, test_user.id).scalars_all()
+        ne_users = await new_cls_querier(User).ne(User.id, test_user.id).all()
         assert all(u.id != test_user.id for u in ne_users)
         logger.info(f"test ne success")
 
         # gt
-        gt_users = await new_cls_querier(User).gt(User.id, test_user.id).scalars_all()
+        gt_users = await new_cls_querier(User).gt(User.id, test_user.id).all()
         assert all(u.id > test_user.id for u in gt_users)
         logger.info(f"test gt success")
 
         # lt
-        lt_users = await new_cls_querier(User).lt(User.id, test_user.id).scalars_all()
+        lt_users = await new_cls_querier(User).lt(User.id, test_user.id).all()
         assert all(u.id < test_user.id for u in lt_users)
         logger.info(f"test lt success")
 
         # ge
-        ge_users = await new_cls_querier(User).ge(User.id, test_user.id).scalars_all()
+        ge_users = await new_cls_querier(User).ge(User.id, test_user.id).all()
         assert all(u.id >= test_user.id for u in ge_users)
         logger.info(f"test ge success")
 
         # le
-        le_users = await new_cls_querier(User).le(User.id, test_user.id).scalars_all()
+        le_users = await new_cls_querier(User).le(User.id, test_user.id).all()
         assert all(u.id <= test_user.id for u in le_users)
         logger.info(f"test le success")
 
         # in_ 测试
-        in_users = await new_cls_querier(User).in_(User.id, [test_user.id]).scalars_all()
+        in_users = await new_cls_querier(User).in_(User.id, [test_user.id]).all()
         assert len(in_users) == 1
         logger.info(f"test in_ success")
 
         # like 测试
-        like_users = await new_cls_querier(User).like(User.username, "lilinze").scalars_all()
+        like_users = await new_cls_querier(User).like(User.username, "lilinze").all()
         assert all("lilinze" in u.username for u in like_users)
         logger.info(f"test like success")
 
         # is_null 测试（确保测试时deleted_at为null）
-        null_users = await new_cls_querier(User).is_null(User.deleted_at).scalars_all()
+        null_users = await new_cls_querier(User).is_null(User.deleted_at).all()
         assert any(u.deleted_at is None for u in null_users)
         logger.info(f"test is_null success")
 
@@ -202,7 +202,7 @@ async def test_dao():
         or_users = await new_cls_querier(User).or_(
             User.username == test_user.username,
             User.account == "invalid_account"
-        ).scalars_all()
+        ).all()
         assert len(or_users) >= 1
         logger.info(f"test or success")
 
@@ -210,7 +210,7 @@ async def test_dao():
         between_users = await new_cls_querier(User).between(
             User.id,
             (test_user.id - 1, test_user.id + 1)
-        ).scalars_all()
+        ).all()
         assert len(between_users) >= 1
         logger.info(f"test between success")
 
