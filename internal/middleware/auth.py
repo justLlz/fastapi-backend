@@ -2,7 +2,7 @@ from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from internal.core.auth_token import verify_token
-from internal.core.signature import verify_signature
+from internal.core.signature import signature_auth_helper
 from internal.utils.context import set_user_id_context_var
 from pkg.logger_helper import logger
 from pkg.resp_helper import response_factory
@@ -23,13 +23,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
         url_path = request.url.path
         # openapi验签逻辑
         if url_path.startswith("/openapi") and url_path != "/openapi.json":
-            x_signature = request.headers.get("X-Signature", "")
-            x_timestamp = request.headers.get("X-Timestamp", "")
-            x_nonce = request.headers.get("X-Nonce", "")
-
-            logger.info(f"openapi verify signature: {x_signature}, {x_timestamp}, {x_nonce}")
-            if not await verify_signature(x_signature, x_timestamp, x_nonce):
-                return response_factory.resp_401(message="invalid signature or timestamp")
+            x_signature = request.headers.get("X-Signature")
+            x_timestamp = request.headers.get("X-Timestamp")
+            x_nonce = request.headers.get("X-Nonce")
+            if not await signature_auth_helper.verify(signature=x_signature, timestamp=x_timestamp, nonce=x_nonce):
+                return response_factory.resp_401(
+                    msg=f"signature_auth failed, x_signature={x_signature}, x_timestamp={x_timestamp}, x_nonce={x_nonce}"
+                )
             return await call_next(request)
 
         # 跳过无需认证的路径
