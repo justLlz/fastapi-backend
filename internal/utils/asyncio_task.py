@@ -29,8 +29,9 @@ class AsyncTaskManager:
             kwargs_dict: dict = None,
             timeout: int | None = None,
     ):
-        coro_func_name = self.get_coro_func_name(coro_func)
         kwargs_dict = kwargs_dict or {}
+        coro_func_name = self.get_coro_func_name(coro_func)
+
         try:
             async with self.semaphore:
                 logger.info(f"Task {coro_func_name} {task_id} started.")
@@ -40,7 +41,7 @@ class AsyncTaskManager:
                     else:
                         await coro_func(*args_tuple, **kwargs_dict)
                     logger.info(f"Task {coro_func_name} {task_id} completed.")
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     logger.error(f"Task {coro_func_name} {task_id} timed out after {timeout} seconds.")
                 except Exception as e:
                     logger.exception(f"Task {coro_func_name} {task_id} failed, err={e}")
@@ -53,7 +54,7 @@ class AsyncTaskManager:
     async def run_tasks_return_results(
             self,
             coro_func: Callable[..., Awaitable[Any]],
-            args_list: list[tuple],
+            args_tuple_list: list[tuple],
     ) -> list[Any]:
         coro_func_name = self.get_coro_func_name(coro_func)
 
@@ -68,13 +69,14 @@ class AsyncTaskManager:
                     logger.exception(f"Task-{index} ({coro_func_name}, {args_tuple}) failed. err={e}")
                     return None
 
-        tasks = [_wrapped(i, args_tuple) for i, args_tuple in enumerate(args_list)]
+        tasks = [_wrapped(i, args_tuple) for i, args_tuple in enumerate(args_tuple_list)]
         # 加 return_exceptions=True 保证有异常也能批量返回
         return await asyncio.gather(*tasks, return_exceptions=True)
 
     async def add_task(
             self,
             task_id: str,
+            *,
             coro_func: Callable[..., Awaitable[Any]],
             args_tuple: tuple = (),
             kwargs_dict: dict = None,
@@ -82,6 +84,7 @@ class AsyncTaskManager:
     ):
         kwargs_dict = kwargs_dict or {}
         coro_func_name = self.get_coro_func_name(coro_func)
+
         lock_key = f"{REDIS_KEY_LOCK_PREFIX}:{coro_func_name}:{task_id}"
         lock_id = await cache.acquire_lock(lock_key)
         if not lock_id:
