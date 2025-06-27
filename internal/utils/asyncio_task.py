@@ -44,7 +44,7 @@ class AsyncTaskManager:
                 except TimeoutError:
                     logger.error(f"Task {coro_func_name} {task_id} timed out after {timeout} seconds.")
                 except Exception as e:
-                    logger.exception(f"Task {coro_func_name} {task_id} failed, err={e}")
+                    logger.error(f"Task {coro_func_name} {task_id} failed, err={e}")
         except asyncio.CancelledError:
             logger.info(f"Task {coro_func_name} {task_id} cancelled.")
         finally:
@@ -66,7 +66,7 @@ class AsyncTaskManager:
                     logger.info(f"Task-{index} ({coro_func_name}, {args_tuple}) completed.")
                     return result
                 except Exception as e:
-                    logger.exception(f"Task-{index} ({coro_func_name}, {args_tuple}) failed. err={e}")
+                    logger.error(f"Task-{index} ({coro_func_name}, {args_tuple}) failed. err={e}")
                     return None
 
         tasks = [_wrapped(i, args_tuple) for i, args_tuple in enumerate(args_tuple_list)]
@@ -99,7 +99,7 @@ class AsyncTaskManager:
                 task = asyncio.create_task(self._run_task(task_id, coro_func, args_tuple, kwargs_dict, timeout))
                 self.tasks[task_id] = task
         except Exception as e:
-            logger.exception(f"Error adding task {coro_func_name} for {task_id}, err={e}")
+            logger.error(f"Error adding task {coro_func_name} for {task_id}, err={e}")
             return False
         finally:
             await cache.release_lock(lock_key, lock_id)
@@ -130,7 +130,7 @@ class AsyncTaskManager:
                 task.cancel()
             await asyncio.gather(*task_list, return_exceptions=True)
         except Exception as e:
-            logger.exception(f"Error shutting down tasks. err={e}")
+            logger.error(f"Error shutting down tasks. err={e}")
 
         logger.info("All tasks terminated")
 
