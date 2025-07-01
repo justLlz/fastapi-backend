@@ -1,8 +1,8 @@
 import time
 import uuid
 
-from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 from starlette.responses import Response
 
 from pkg.logger_helper import logger

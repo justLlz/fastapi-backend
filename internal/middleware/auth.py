@@ -1,5 +1,6 @@
-from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 from internal.core.auth_token import verify_token
 from internal.core.signature import signature_auth_helper
@@ -19,7 +20,7 @@ auth_token_white = [
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next)-> Response:
         url_path = request.url.path
         # openapi验签逻辑
         if url_path.startswith("/openapi") and url_path != "/openapi.json":
