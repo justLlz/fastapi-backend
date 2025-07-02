@@ -57,15 +57,15 @@ class HTTPXClient:
                 ) as response:
                     try:
                         response.raise_for_status()
-                    except httpx.HTTPStatusError as exc:
+                    except httpx.HTTPStatusError:
                         try:
                             err_bytes = await response.aread()
                             err_text = err_bytes.decode(errors="ignore")
                             logger.error(f"HTTPStatusError {response.status_code}: {err_text}")
                         except Exception as e:
                             logger.error(f"HTTPStatusError, content read failed: {e}")
-                            raise  AppIgnoreException()
-
+                            raise AppIgnoreException()
+                    logger.info(f"Stream Response: success, status_code={response.status_code}")
                     async for chunk in response.aiter_bytes(chunk_size):
                         yield chunk
         except httpx.RequestError as exc:
@@ -99,7 +99,7 @@ class HTTPXClient:
         :param headers: 单次请求头
         :param timeout: 单次请求超时
         """
-        logger.info(f"Requesting: method={method}, url={url}")
+        logger.info(f"Requesting: method={method}, url={url}, json={json}")
         url = url.strip()
 
         combined_headers = {**self.headers, **(headers or {})}
@@ -120,16 +120,16 @@ class HTTPXClient:
                 return response
 
         except httpx.HTTPStatusError as exc:
-            logger.error(f"HTTPxStatusError: {exc.response.status_code} - {exc.response.text}")
-            raise AppIgnoreException()
+            logger.error(f"HTTPxStatusError: {exc}")
+            raise AppIgnoreException() from exc
 
         except httpx.RequestError as exc:
             logger.error(f"HTTPxRequestError: {exc}")
-            raise  AppIgnoreException()
+            raise AppIgnoreException() from exc
 
         except Exception as exc:
             logger.error(f"UnexpectedError: {exc}")
-            raise  AppIgnoreException()
+            raise AppIgnoreException() from exc
 
     async def request_and_return(
             self,
@@ -143,11 +143,11 @@ class HTTPXClient:
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
     ) -> tuple[int, dict[str, Any] | str | None, str]:
-        logger.info(f"Requesting: method={method}, url={url}")
+        logger.info(f"Requesting: method={method}, url={url}, json={json}")
         try:
             combined_headers = {**self.headers, **(headers or {})}
             if files:
-                combined_headers.pop('content-type', None)
+                combined_headers.pop("content-type", None)
 
             async with httpx.AsyncClient(timeout=timeout or self.timeout) as client:
                 response: httpx.Response = await client.request(
