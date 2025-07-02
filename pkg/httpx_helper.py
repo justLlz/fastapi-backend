@@ -120,22 +120,22 @@ class HTTPXClient:
                 return response
 
         except httpx.HTTPStatusError as exc:
-            logger.error(f"HTTPxStatusError: {exc}")
+            logger.error(f"HTTPxStatusError, err={exc}")
             raise AppIgnoreException() from exc
 
         except httpx.RequestError as exc:
-            logger.error(f"HTTPxRequestError: {exc}")
+            logger.error(f"HTTPxRequestError, err={exc}")
             raise AppIgnoreException() from exc
 
         except Exception as exc:
-            logger.error(f"UnexpectedError: {exc}")
+            logger.error(f"UnexpectedError, err={exc}")
             raise AppIgnoreException() from exc
 
     async def request_and_return(
             self,
             method: str,
-            *,
             url: str,
+            *,
             params: dict[str, Any] | None = None,
             data: dict[str, Any] | str | None = None,
             json: dict[str, Any] | None = None,
@@ -159,6 +159,7 @@ class HTTPXClient:
                     files=files,
                     headers=combined_headers,
                 )
+                response.raise_for_status()
 
                 try:
                     resp_data = response.json()
@@ -168,21 +169,17 @@ class HTTPXClient:
                 return response.status_code, resp_data, ""
 
         except httpx.HTTPStatusError as exc:
-            code = exc.response.status_code
-            logger.error(f"HTTPxStatusError: {code} - {exc.response.text}")
-            try:
-                err = exc.response.json()
-            except ValueError:
-                err = exc.response.text
-            return code, err, f"HTTPxStatusError: {code}"
+            status_code = exc.response.status_code
+            logger.error(f"HTTPxStatusError, status_code={status_code}, err={exc}")
+            return status_code, None, str(exc)
 
         except httpx.RequestError as exc:
-            logger.error(f"HTTPxRequestError: {exc}")
-            return 500, None, f"HTTPxRequestError: {exc}"
+            logger.error(f"HTTPxRequestError, err={exc}")
+            return 500, None, str(exc)
 
         except Exception as exc:
-            logger.error(f"UnexpectedError: {str(exc)}")
-            return 500, None, f"UnexpectedError: {exc}"
+            logger.error(f"UnexpectedError, err={exc}")
+            return 500, None, str(exc)
 
     async def get(self,
                   url: str,
@@ -194,14 +191,16 @@ class HTTPXClient:
         resp: httpx.Response = await self._request("GET", url, params=params, headers=headers, timeout=timeout)
         return resp.json()
 
-    async def post(self,
-                   url: str,
-                   *,
-                   json: dict[str, Any] | None = None,
-                   data: dict[str, Any] | str | None = None,
-                   files: dict[str, Any] | None = None,
-                   headers: dict[str, str] | None = None,
-                   timeout: int | None = None) -> Any:
+    async def post(
+            self,
+            url: str,
+            *,
+            json: dict[str, Any] | None = None,
+            data: dict[str, Any] | str | None = None,
+            files: dict[str, Any] | None = None,
+            headers: dict[str, str] | None = None,
+            timeout: int | None = None
+    ) -> Any:
         resp: httpx.Response = await self._request(
             "POST", url, json=json, data=data, files=files, headers=headers, timeout=timeout
         )
@@ -311,6 +310,23 @@ class HTTPXClient:
                 chunk_size=chunk_size,
         ):
             yield chunk
+
+    async def post_return(
+            self,
+            url: str,
+            *,
+            json: dict[str, Any] | None = None,
+            data: dict[str, Any] | str | None = None,
+            files: dict[str, Any] | None = None,
+            headers: dict[str, str] | None = None,
+            timeout: int | None = None
+    ) -> tuple[int, dict[str, Any] | str | None, str]:
+        """
+        POST请求，返回状态码、响应内容、响应头
+        """
+        return await self.request_and_return(
+            "POST", url, json=json, data=data, files=files, headers=headers, timeout=timeout
+        )
 
 
 httpx_cli = HTTPXClient()
