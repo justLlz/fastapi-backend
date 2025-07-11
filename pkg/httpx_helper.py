@@ -9,8 +9,6 @@ import httpx
 
 from pkg import orjson_dumps
 from pkg.exception import AppIgnoreException
-# from internal.utils.exception_handler import AppIgnoreException
-# from pkg import orjson_dumps
 from pkg.logger_helper import logger
 
 
@@ -39,10 +37,10 @@ class HTTPXClient:
             files: dict[str, Any] | None = None,
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
-            chunk_size: int = 1024,
+            chunk_size: int = 1024
     ) -> AsyncGenerator[bytes, None]:
-        logger.info(f"Stream Requesting: method={method}, url={url}")
         url = url.strip()
+        logger.info(f"Stream Requesting: method={method}, url={url}")
         combined_headers = {**self.headers, **(headers or {})}
         if files:
             combined_headers.pop('content-type', None)
@@ -58,26 +56,25 @@ class HTTPXClient:
                         files=files,
                         headers=combined_headers,
                 ) as response:
-                    try:
-                        response.raise_for_status()
-                    except httpx.HTTPStatusError:
-                        try:
-                            err_bytes = await response.aread()
-                            err_text = err_bytes.decode(errors="ignore")
-                            logger.error(f"HTTPStatusError {response.status_code}: {err_text}")
-                        except Exception as e:
-                            logger.error(f"HTTPStatusError, content read failed: {e}")
-                            raise AppIgnoreException()
+                    response.raise_for_status()
                     logger.info(f"Stream Response: success, status_code={response.status_code}")
                     async for chunk in response.aiter_bytes(chunk_size):
                         yield chunk
-        except httpx.RequestError as exc:
-            logger.error(
-                f"HTTPxRequestError: type={type(exc).__name__} url={getattr(exc.request, 'url', 'N/A')} detail={str(exc)}"
-            )
+        except httpx.HTTPStatusError as exc:
+            status_code = exc.response.status_code
+            try:
+                err_bytes = await response.aread()
+                err_text = err_bytes.decode(errors="ignore")
+                logger.error(f"HTTPStatusError, status_code={status_code}, err={err_text}")
+            except Exception as e:
+                logger.error(f"HTTPStatusError, content read failed: {e}")
+
             raise AppIgnoreException()
+        except httpx.RequestError as exc:
+            logger.error(f"HTTPxRequestError, err={exc}")
+            raise AppIgnoreException() from exc
         except Exception as exc:
-            logger.error(f"UnexpectedError: {type(exc).__name__}: {exc}")
+            logger.error(f"UnexpectedError, err={exc}")
             raise AppIgnoreException()
 
     async def _request(
@@ -91,23 +88,26 @@ class HTTPXClient:
             files: dict[str, Any] | None = None,
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
-    ) -> httpx.Response:
+            to_raise: bool = True,
+    ) -> httpx.Response | (int | None, dict[str, Any] | str | None, str):
         """
         :param method: HTTP 方法
         :param url: 完整 URL
         :param params: 查询参数
         :param data: form-data 或普通 body
         :param json: JSON body
-        :param files: 文件上传 dict, e.g. {'file': ('a.txt', b'bytes', 'text/plain')}
+        :param files: 文件上传 dict
         :param headers: 单次请求头
         :param timeout: 单次请求超时
+        :return: httpx.Response
         """
-        logger.info(f"Requesting: method={method}, url={url}, json={json}")
         url = url.strip()
+        logger.info(f"Requesting: method={method}, url={url}, json={json}")
 
         combined_headers = {**self.headers, **(headers or {})}
         if files:
-            combined_headers.pop('content-type', None)  # 让 httpx 自动设置 multipart/form-data
+            combined_headers.pop('content-type', None)
+
         try:
             async with httpx.AsyncClient(timeout=timeout or self.timeout) as client:
                 response: httpx.Response = await client.request(
@@ -120,87 +120,36 @@ class HTTPXClient:
                     headers=combined_headers,
                 )
                 response.raise_for_status()
-                return response
-
         except httpx.HTTPStatusError as exc:
             status_code = exc.response.status_code
             try:
                 resp_content = exc.response.json()
                 resp_content = str(orjson_dumps(resp_content))
             except Exception as e:
-                logger.warning(f"parse exc.response.json() failed, err={e}")
+                logger.error(f"parse exc.response.json() failed, err={e}")
                 resp_content = exc.response.text
 
             logger.error(
                 f"HTTPxStatusError, status_code={status_code}, err={exc}, response={resp_content}"
             )
-            raise AppIgnoreException() from exc
 
-        except httpx.RequestError as exc:
-            logger.error(f"HTTPxRequestError, err={exc}")
-            raise AppIgnoreException() from exc
+            if to_raise:
+                raise AppIgnoreException() from exc
 
-        except Exception as exc:
-            logger.error(f"UnexpectedError, err={exc}")
-            raise AppIgnoreException() from exc
-
-    async def request_and_return(
-            self,
-            method: str,
-            url: str,
-            *,
-            params: dict[str, Any] | None = None,
-            data: dict[str, Any] | str | None = None,
-            json: dict[str, Any] | None = None,
-            files: dict[str, Any] | None = None,
-            headers: dict[str, str] | None = None,
-            timeout: int | None = None,
-    ) -> tuple[int | None, dict[str, Any] | str | None, str]:
-        logger.info(f"Requesting: method={method}, url={url}, json={json}")
-        try:
-            combined_headers = {**self.headers, **(headers or {})}
-            if files:
-                combined_headers.pop("content-type", None)
-
-            async with httpx.AsyncClient(timeout=timeout or self.timeout) as client:
-                response: httpx.Response = await client.request(
-                    method=method.upper(),
-                    url=url,
-                    params=params,
-                    data=None if files else data,
-                    json=None if files else json,
-                    files=files,
-                    headers=combined_headers,
-                )
-                response.raise_for_status()
-
-                try:
-                    resp_data = response.json()
-                except ValueError:
-                    resp_data = response.text
-
-                return response.status_code, resp_data, ""
-
-        except httpx.HTTPStatusError as exc:
-            status_code = exc.response.status_code
-            try:
-                resp_content = exc.response.json()
-                resp_content = str(orjson_dumps(resp_content))
-            except Exception as e:
-                logger.warning(f"parse exc.response.json() failed, err={e}")
-                resp_content = exc.response.text
-
-            logger.error(
-                f"HTTPxStatusError, status_code={status_code}, err={exc}, response={resp_content}"
-            )
             return None, None, resp_content
-
         except httpx.RequestError as exc:
             logger.error(f"HTTPxRequestError, err={exc}")
-            return None, None, str(exc)
 
+            if to_raise:
+                raise AppIgnoreException() from exc
+
+            return None, None, str(exc)
         except Exception as exc:
             logger.error(f"UnexpectedError, err={exc}")
+
+            if to_raise:
+                raise AppIgnoreException() from exc
+
             return None, None, str(exc)
 
     async def get(self,
@@ -332,23 +281,6 @@ class HTTPXClient:
                 chunk_size=chunk_size,
         ):
             yield chunk
-
-    async def post_return(
-            self,
-            url: str,
-            *,
-            json: dict[str, Any] | None = None,
-            data: dict[str, Any] | str | None = None,
-            files: dict[str, Any] | None = None,
-            headers: dict[str, str] | None = None,
-            timeout: int | None = None
-    ) -> tuple[int, dict[str, Any] | str | None, str]:
-        """
-        POST请求，返回状态码、响应内容、响应头
-        """
-        return await self.request_and_return(
-            "POST", url, json=json, data=data, files=files, headers=headers, timeout=timeout
-        )
 
 
 httpx_cli = HTTPXClient()

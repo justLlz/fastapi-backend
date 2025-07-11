@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 from loguru import logger
 from orjson import JSONDecodeError
 
-from pkg import create_uuid_token, json_dumps, json_loads, token_cache_key, token_list_cache_key
+from pkg import create_uuid_token, orjson_dumps, orjson_loads, token_cache_key, token_list_cache_key
 from internal.infra.db import get_redis
 
 
@@ -18,7 +18,7 @@ class Cache:
         设置会话键值，并设置过期时间。
         """
         key = token_cache_key(token)
-        value = json_dumps(user_data)
+        value = orjson_dumps(user_data)
         await cls.set_value(key, value, ex)
 
     @classmethod
@@ -77,7 +77,7 @@ class Cache:
                     value = value.decode("utf-8")
 
                 try:
-                    return json_loads(value)
+                    return orjson_loads(value)
                 except JSONDecodeError as _:
                     return value
         except Exception as e:

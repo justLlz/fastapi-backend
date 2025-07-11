@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import declarative_base
 
 from internal.config.setting import setting
-from pkg import json_dumps, json_loads
+from pkg import orjson_dumps, orjson_loads
 from pkg.logger_helper import logger
 
 # 创建 SQLAlchemy 基类
@@ -22,8 +22,8 @@ engine = create_async_engine(
     max_overflow=20,
     pool_timeout=30,
     pool_recycle=1800,
-    json_serializer=json_dumps,
-    json_deserializer=json_loads
+    json_serializer=orjson_dumps,
+    json_deserializer=orjson_loads
 )
 
 # 创建异步 session_maker

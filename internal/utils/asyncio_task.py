@@ -2,8 +2,9 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from internal.constants import REDIS_KEY_LOCK_PREFIX
-from internal.utils.cache_helper import cache
+from internal.utils.cache_helpers import cache
+# from internal.constants import REDIS_KEY_LOCK_PREFIX
+# from internal.utils.cache_helper import cache
 from pkg.logger_helper import logger
 
 
@@ -85,7 +86,7 @@ class AsyncTaskManager:
         kwargs_dict = kwargs_dict or {}
         coro_func_name = self.get_coro_func_name(coro_func)
 
-        lock_key = f"{REDIS_KEY_LOCK_PREFIX}:{coro_func_name}:{task_id}"
+        lock_key = f"{coro_func_name}:{task_id}"
         lock_id = await cache.acquire_lock(lock_key)
         if not lock_id:
             logger.info(f"{coro_func_name}, task_id: {task_id}, acquire_lock fail")
