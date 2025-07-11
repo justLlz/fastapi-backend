@@ -7,7 +7,8 @@ from urllib.parse import urlparse
 
 import httpx
 
-from pkg.exception import AppIgnoreException
+from internal.utils.exception_handler import AppIgnoreException
+from pkg import orjson_dumps
 from pkg.logger_helper import logger
 
 
@@ -120,7 +121,17 @@ class HTTPXClient:
                 return response
 
         except httpx.HTTPStatusError as exc:
-            logger.error(f"HTTPxStatusError, err={exc}")
+            status_code = exc.response.status_code
+            try:
+                resp_content = exc.response.json()
+                resp_content = str(orjson_dumps(resp_content))
+            except Exception as e:
+                logger.warning(f"parse exc.response.json() failed, err={e}")
+                resp_content = exc.response.text
+
+            logger.error(
+                f"HTTPxStatusError, status_code={status_code}, err={exc}, response={resp_content}"
+            )
             raise AppIgnoreException() from exc
 
         except httpx.RequestError as exc:
@@ -142,7 +153,7 @@ class HTTPXClient:
             files: dict[str, Any] | None = None,
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
-    ) -> tuple[int, dict[str, Any] | str | None, str]:
+    ) -> tuple[int | None, dict[str, Any] | str | None, str]:
         logger.info(f"Requesting: method={method}, url={url}, json={json}")
         try:
             combined_headers = {**self.headers, **(headers or {})}
@@ -170,16 +181,25 @@ class HTTPXClient:
 
         except httpx.HTTPStatusError as exc:
             status_code = exc.response.status_code
-            logger.error(f"HTTPxStatusError, status_code={status_code}, err={exc}")
-            return status_code, None, str(exc)
+            try:
+                resp_content = exc.response.json()
+                resp_content = str(orjson_dumps(resp_content))
+            except Exception as e:
+                logger.warning(f"parse exc.response.json() failed, err={e}")
+                resp_content = exc.response.text
+
+            logger.error(
+                f"HTTPxStatusError, status_code={status_code}, err={exc}, response={resp_content}"
+            )
+            return None, None, resp_content
 
         except httpx.RequestError as exc:
             logger.error(f"HTTPxRequestError, err={exc}")
-            return 500, None, str(exc)
+            return None, None, str(exc)
 
         except Exception as exc:
             logger.error(f"UnexpectedError, err={exc}")
-            return 500, None, str(exc)
+            return None, None, str(exc)
 
     async def get(self,
                   url: str,
