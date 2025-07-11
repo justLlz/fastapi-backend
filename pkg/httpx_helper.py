@@ -7,8 +7,10 @@ from urllib.parse import urlparse
 
 import httpx
 
-from internal.utils.exception_handler import AppIgnoreException
 from pkg import orjson_dumps
+from pkg.exception import AppIgnoreException
+# from internal.utils.exception_handler import AppIgnoreException
+# from pkg import orjson_dumps
 from pkg.logger_helper import logger
 
 

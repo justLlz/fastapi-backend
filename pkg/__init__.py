@@ -29,11 +29,11 @@ def get_sys_env_var() -> str:
     return str.lower(os.getenv("ENV", "unknown"))
 
 
-def json_dumps(*args, **kwargs):
+def orjson_dumps(*args, **kwargs):
     return orjson.dumps(*args, **kwargs).decode("utf-8")
 
 
-def json_loads(*args, **kwargs):
+def orjson_loads(*args, **kwargs):
     return orjson.loads(*args, **kwargs)
 
 
