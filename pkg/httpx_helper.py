@@ -7,7 +7,6 @@ from urllib.parse import urlparse
 
 import httpx
 
-from pkg import orjson_dumps
 from pkg.exception import AppIgnoreException
 from pkg.logger_helper import logger
 
@@ -88,8 +87,8 @@ class HTTPXClient:
             files: dict[str, Any] | None = None,
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
-            to_raise: bool = True
-    ) -> httpx.Response | (int | None, dict[str, Any] | str | None, str):
+            to_return: bool = False
+    ) -> httpx.Response | tuple[int | None, dict[str, Any] | str | None, str]:
         """
         :param method: HTTP 方法
         :param url: 完整 URL
@@ -120,11 +119,11 @@ class HTTPXClient:
                     headers=combined_headers,
                 )
                 response.raise_for_status()
+                return response
         except httpx.HTTPStatusError as exc:
             status_code = exc.response.status_code
             try:
                 resp_content = exc.response.json()
-                resp_content = str(orjson_dumps(resp_content))
             except Exception as e:
                 logger.error(f"parse exc.response.json() failed, err={e}")
                 resp_content = exc.response.text
@@ -133,35 +132,36 @@ class HTTPXClient:
                 f"HTTPxStatusError, status_code={status_code}, err={exc}, response={resp_content}"
             )
 
-            if to_raise:
-                raise AppIgnoreException() from exc
+            if to_return:
+                return None, None, resp_content
 
-            return None, None, resp_content
+            raise AppIgnoreException() from exc
         except httpx.RequestError as exc:
             logger.error(f"HTTPxRequestError, err={exc}")
 
-            if to_raise:
-                raise AppIgnoreException() from exc
+            if to_return:
+                return None, None, str(exc)
 
-            return None, None, str(exc)
+            raise AppIgnoreException() from exc
         except Exception as exc:
             logger.error(f"UnexpectedError, err={exc}")
 
-            if to_raise:
-                raise AppIgnoreException() from exc
+            if to_return:
+                return None, None, str(exc)
 
-            return None, None, str(exc)
+            raise AppIgnoreException() from exc
 
-    async def get(self,
-                  url: str,
-                  *,
-                  params: dict[str, Any] | None = None,
-                  headers: dict[str, str] | None = None,
-                  timeout: int | None = None,
-                  to_raise: bool = True
-                  ) -> Any:
+    async def get(
+            self,
+            url: str,
+            *,
+            params: dict[str, Any] | None = None,
+            headers: dict[str, str] | None = None,
+            timeout: int | None = None,
+            to_return: bool = False
+    ) -> Any:
         resp: httpx.Response | (int | None, dict[str, Any] | str | None, str) = await self._request(
-            "GET", url, params=params, headers=headers, timeout=timeout, to_raise=to_raise
+            "GET", url, params=params, headers=headers, timeout=timeout, to_return=to_return
         )
         return resp.json()
 
@@ -174,28 +174,29 @@ class HTTPXClient:
             files: dict[str, Any] | None = None,
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
-            to_raise: bool = True
+            to_return: bool = False
     ) -> Any:
         resp: httpx.Response | (int | None, dict[str, Any] | str | None, str) = await self._request(
-            "POST", url, json=json, data=data, files=files, headers=headers, timeout=timeout, to_raise=to_raise
+            "POST", url, json=json, data=data, files=files, headers=headers, timeout=timeout, to_return=to_return
         )
         if isinstance(resp, httpx.Response):
             return resp.json()
 
         return resp
 
-    async def put(self,
-                  url: str,
-                  *,
-                  json: dict[str, Any] | None = None,
-                  data: dict[str, Any] | str | None = None,
-                  files: dict[str, Any] | None = None,
-                  headers: dict[str, str] | None = None,
-                  timeout: int | None = None,
-                  to_raise: bool = True
-                  ) -> Any:
+    async def put(
+            self,
+            url: str,
+            *,
+            json: dict[str, Any] | None = None,
+            data: dict[str, Any] | str | None = None,
+            files: dict[str, Any] | None = None,
+            headers: dict[str, str] | None = None,
+            timeout: int | None = None,
+            to_return: bool = False
+    ) -> Any:
         resp: httpx.Response | (int | None, dict[str, Any] | str | None, str) = await self._request(
-            "PUT", url, json=json, data=data, files=files, headers=headers, timeout=timeout, to_raise=to_raise
+            "PUT", url, json=json, data=data, files=files, headers=headers, timeout=timeout, to_return=to_return
         )
 
         if isinstance(resp, httpx.Response):
@@ -203,16 +204,17 @@ class HTTPXClient:
 
         return resp
 
-    async def delete(self,
-                     url: str,
-                     *,
-                     json: dict[str, Any] | None = None,
-                     headers: dict[str, str] | None = None,
-                     timeout: int | None = None,
-                     to_raise: bool = True
-                     ) -> Any:
+    async def delete(
+            self,
+            url: str,
+            *,
+            json: dict[str, Any] | None = None,
+            headers: dict[str, str] | None = None,
+            timeout: int | None = None,
+            to_return: bool = False
+    ) -> Any:
         resp: httpx.Response = await self._request(
-            "DELETE", url, json=json, headers=headers, timeout=timeout, to_raise=to_raise
+            "DELETE", url, json=json, headers=headers, timeout=timeout, to_return=to_return
         )
 
         if isinstance(resp, httpx.Response):
@@ -227,8 +229,8 @@ class HTTPXClient:
             params: dict[str, Any] | None = None,
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
-            to_raise: bool = True
-    ) -> tuple[bytes, str, str]:
+            to_return: bool = False
+    ) -> Any:
         download_start = time.perf_counter()
         # 走原来的 _request 拿到完整 response
         resp = await self._request(
@@ -237,7 +239,7 @@ class HTTPXClient:
             params=params,
             headers=headers,
             timeout=timeout,
-            to_raise=to_raise
+            to_return=to_return
         )
 
         if not isinstance(resp, httpx.Response):
