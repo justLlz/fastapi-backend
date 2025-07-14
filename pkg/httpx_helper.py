@@ -32,7 +32,7 @@ class HTTPXClient:
             *,
             url: str,
             params: dict[str, Any] | None = None,
-            data: dict[str, Any] | str | None = None,
+            data: dict[str, Any] | None = None,
             json: dict[str, Any] | None = None,
             files: dict[str, Any] | None = None,
             headers: dict[str, str] | None = None,
@@ -88,7 +88,7 @@ class HTTPXClient:
             files: dict[str, Any] | None = None,
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
-            to_raise: bool = True,
+            to_raise: bool = True
     ) -> httpx.Response | (int | None, dict[str, Any] | str | None, str):
         """
         :param method: HTTP 方法
@@ -158,8 +158,11 @@ class HTTPXClient:
                   params: dict[str, Any] | None = None,
                   headers: dict[str, str] | None = None,
                   timeout: int | None = None,
+                  to_raise: bool = True
                   ) -> Any:
-        resp: httpx.Response = await self._request("GET", url, params=params, headers=headers, timeout=timeout)
+        resp: httpx.Response | (int | None, dict[str, Any] | str | None, str) = await self._request(
+            "GET", url, params=params, headers=headers, timeout=timeout, to_raise=to_raise
+        )
         return resp.json()
 
     async def post(
@@ -170,12 +173,16 @@ class HTTPXClient:
             data: dict[str, Any] | str | None = None,
             files: dict[str, Any] | None = None,
             headers: dict[str, str] | None = None,
-            timeout: int | None = None
+            timeout: int | None = None,
+            to_raise: bool = True
     ) -> Any:
-        resp: httpx.Response = await self._request(
-            "POST", url, json=json, data=data, files=files, headers=headers, timeout=timeout
+        resp: httpx.Response | (int | None, dict[str, Any] | str | None, str) = await self._request(
+            "POST", url, json=json, data=data, files=files, headers=headers, timeout=timeout, to_raise=to_raise
         )
-        return resp.json()
+        if isinstance(resp, httpx.Response):
+            return resp.json()
+
+        return resp
 
     async def put(self,
                   url: str,
@@ -184,20 +191,34 @@ class HTTPXClient:
                   data: dict[str, Any] | str | None = None,
                   files: dict[str, Any] | None = None,
                   headers: dict[str, str] | None = None,
-                  timeout: int | None = None) -> Any:
-        resp: httpx.Response = await self._request(
-            "PUT", url, json=json, data=data, files=files, headers=headers, timeout=timeout
+                  timeout: int | None = None,
+                  to_raise: bool = True
+                  ) -> Any:
+        resp: httpx.Response | (int | None, dict[str, Any] | str | None, str) = await self._request(
+            "PUT", url, json=json, data=data, files=files, headers=headers, timeout=timeout, to_raise=to_raise
         )
-        return resp.json()
+
+        if isinstance(resp, httpx.Response):
+            return resp.json()
+
+        return resp
 
     async def delete(self,
                      url: str,
                      *,
                      json: dict[str, Any] | None = None,
                      headers: dict[str, str] | None = None,
-                     timeout: int | None = None) -> Any:
-        resp: httpx.Response = await self._request("DELETE", url, json=json, headers=headers, timeout=timeout)
-        return resp.json()
+                     timeout: int | None = None,
+                     to_raise: bool = True
+                     ) -> Any:
+        resp: httpx.Response = await self._request(
+            "DELETE", url, json=json, headers=headers, timeout=timeout, to_raise=to_raise
+        )
+
+        if isinstance(resp, httpx.Response):
+            return resp.json()
+
+        return resp
 
     async def download_bytes(
             self,
@@ -206,15 +227,8 @@ class HTTPXClient:
             params: dict[str, Any] | None = None,
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
+            to_raise: bool = True
     ) -> tuple[bytes, str, str]:
-        """
-        下载 URL 指向的二进制内容，返回 (bytes, file_name, content_type)。
-        :param url: 完整资源 URL
-        :param params: 查询参数
-        :param headers: 请求头
-        :param timeout: 超时时间（秒）
-        """
-
         download_start = time.perf_counter()
         # 走原来的 _request 拿到完整 response
         resp = await self._request(
@@ -223,7 +237,12 @@ class HTTPXClient:
             params=params,
             headers=headers,
             timeout=timeout,
+            to_raise=to_raise
         )
+
+        if not isinstance(resp, httpx.Response):
+            return resp
+
         logger.info(f"download {url} cost={time.perf_counter() - download_start:.2f}s")
         # 2. 从 URL 解析文件名
         parsed = urlparse(url)
