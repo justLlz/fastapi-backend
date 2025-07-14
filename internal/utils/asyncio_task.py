@@ -3,8 +3,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from internal.utils.cache_helpers import cache
-# from internal.constants import REDIS_KEY_LOCK_PREFIX
-# from internal.utils.cache_helper import cache
+
 from pkg.logger_helper import logger
 
 
@@ -50,7 +49,7 @@ class AsyncTaskManager:
             logger.info(f"Task {coro_func_name} {task_id} cancelled.")
         finally:
             async with self.lock:
-                await self.tasks.pop(task_id, None)
+                self.tasks.pop(task_id, None)
 
     async def run_tasks_return_results(
             self,
