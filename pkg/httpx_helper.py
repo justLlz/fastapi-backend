@@ -20,10 +20,10 @@ class HTTPXClient:
     def __init__(self, timeout: int = 60, headers: dict[str, str] | None = None):
         """
         :param timeout: 请求超时时间，默认 10 秒
-        :param headers: 公共请求头，默认 {'content-type': 'application/json'}
+        :param headers: 公共请求头，默认 {"Content-Type": 'application/json'}
         """
         self.timeout = timeout
-        self.headers = headers or {'content-type': 'application/json'}
+        self.headers = headers or {"Content-Type": 'application/json'}
 
     async def _stream(
             self,
@@ -40,9 +40,9 @@ class HTTPXClient:
     ) -> AsyncGenerator[bytes, None]:
         url = url.strip()
         logger.info(f"Stream Requesting: method={method}, url={url}")
-        combined_headers = {**self.headers, **(headers or {})}
+        combined_headers = {**self.headers, **(headers or {}), "Content-Type": "application/json"}
         if files:
-            combined_headers.pop('content-type', None)
+            combined_headers.pop("Content-Type", None)
 
         try:
             async with httpx.AsyncClient(timeout=timeout or self.timeout) as client:
@@ -88,7 +88,7 @@ class HTTPXClient:
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
             to_return: bool = False
-    ) -> httpx.Response | tuple[int | None, dict[str, Any] | str | None, str]:
+    ) -> tuple[int | None, httpx.Response | None, str | None]:
         """
         :param method: HTTP 方法
         :param url: 完整 URL
@@ -103,9 +103,9 @@ class HTTPXClient:
         url = url.strip()
         logger.info(f"Requesting: method={method}, url={url}, json={json}")
 
-        combined_headers = {**self.headers, **(headers or {})}
+        combined_headers = {**self.headers, **(headers or {}), "Content-Type": "application/json"}
         if files:
-            combined_headers.pop('content-type', None)
+            combined_headers.pop("Content-Type", None)
 
         try:
             async with httpx.AsyncClient(timeout=timeout or self.timeout) as client:
@@ -119,7 +119,7 @@ class HTTPXClient:
                     headers=combined_headers,
                 )
                 response.raise_for_status()
-                return response
+                return response.status_code, response, None
         except httpx.HTTPStatusError as exc:
             status_code = exc.response.status_code
             try:
@@ -133,7 +133,7 @@ class HTTPXClient:
             )
 
             if to_return:
-                return None, None, resp_content
+                return status_code, None, resp_content
 
             raise AppIgnoreException() from exc
         except httpx.RequestError as exc:
@@ -159,11 +159,14 @@ class HTTPXClient:
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
             to_return: bool = False
-    ) -> Any:
-        resp: httpx.Response | (int | None, dict[str, Any] | str | None, str) = await self._request(
+    ) -> tuple[int | None, dict | None, str | None]:
+        status_code, httpx_response, error_message = await self._request(
             "GET", url, params=params, headers=headers, timeout=timeout, to_return=to_return
         )
-        return resp.json()
+
+        resp = httpx_response.json() if isinstance(httpx_response, httpx.Response) else httpx_response
+
+        return status_code, resp, error_message
 
     async def post(
             self,
@@ -175,14 +178,14 @@ class HTTPXClient:
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
             to_return: bool = False
-    ) -> Any:
-        resp: httpx.Response | (int | None, dict[str, Any] | str | None, str) = await self._request(
+    ) -> tuple[int | None, dict | None, str | None]:
+        status_code, httpx_response, error_message = await self._request(
             "POST", url, json=json, data=data, files=files, headers=headers, timeout=timeout, to_return=to_return
         )
-        if isinstance(resp, httpx.Response):
-            return resp.json()
 
-        return resp
+        resp = httpx_response.json() if isinstance(httpx_response, httpx.Response) else httpx_response
+
+        return status_code, resp, error_message
 
     async def put(
             self,
@@ -194,15 +197,14 @@ class HTTPXClient:
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
             to_return: bool = False
-    ) -> Any:
-        resp: httpx.Response | (int | None, dict[str, Any] | str | None, str) = await self._request(
+    ) -> tuple[int | None, dict | None, str | None]:
+        status_code, httpx_response, error_message = await self._request(
             "PUT", url, json=json, data=data, files=files, headers=headers, timeout=timeout, to_return=to_return
         )
 
-        if isinstance(resp, httpx.Response):
-            return resp.json()
+        resp = httpx_response.json() if isinstance(httpx_response, httpx.Response) else httpx_response
 
-        return resp
+        return status_code, resp, error_message
 
     async def delete(
             self,
@@ -212,15 +214,14 @@ class HTTPXClient:
             headers: dict[str, str] | None = None,
             timeout: int | None = None,
             to_return: bool = False
-    ) -> Any:
-        resp: httpx.Response = await self._request(
+    ) -> tuple[int | None, dict | None, str | None]:
+        status_code, httpx_response, error_message = await self._request(
             "DELETE", url, json=json, headers=headers, timeout=timeout, to_return=to_return
         )
 
-        if isinstance(resp, httpx.Response):
-            return resp.json()
+        resp = httpx_response.json() if isinstance(httpx_response, httpx.Response) else httpx_response
 
-        return resp
+        return status_code, resp, error_message
 
     async def download_bytes(
             self,
@@ -233,7 +234,7 @@ class HTTPXClient:
     ) -> Any:
         download_start = time.perf_counter()
         # 走原来的 _request 拿到完整 response
-        resp = await self._request(
+        status_code, httpx_response, error_message = await self._request(
             method="GET",
             url=url,
             params=params,
@@ -242,8 +243,8 @@ class HTTPXClient:
             to_return=to_return
         )
 
-        if not isinstance(resp, httpx.Response):
-            return resp
+        if not isinstance(httpx_response, httpx.Response):
+            return status_code, None, error_message
 
         logger.info(f"download {url} cost={time.perf_counter() - download_start:.2f}s")
         # 2. 从 URL 解析文件名
@@ -251,13 +252,13 @@ class HTTPXClient:
         file_name = os.path.basename(parsed.path) or "download"
 
         # 3. 优先从 Content-Type 头取
-        content_type = resp.headers.get("content-type")
+        content_type = httpx_response.headers.get("Content-Type")
         if not content_type:
             # 再根据后缀猜一次
             ct, _ = mimetypes.guess_type(file_name)
             content_type = ct or "application/octet-stream"
 
-        return resp.content, file_name, content_type
+        return file_name, httpx_response.content, content_type
 
     async def stream_get(
             self,
