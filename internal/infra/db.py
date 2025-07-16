@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 from redis.asyncio import ConnectionPool, Redis
 from sqlalchemy import event, text
@@ -31,15 +31,23 @@ AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_
 
 
 @asynccontextmanager
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_session(no_autoflush: bool = False) -> AsyncGenerator[AsyncSession, Any]:
     async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        except Exception as e:
-            # Check if a transaction is active before rolling back
-            if session.is_active:
-                await session.rollback()
-            raise
+        if no_autoflush:
+            with session.no_autoflush:
+                try:
+                    yield session
+                except Exception as e:
+                    if session.is_active:
+                        await session.rollback()
+                    raise e
+        else:
+            try:
+                yield session
+            except Exception as e:
+                if session.is_active:
+                    await session.rollback()
+                raise e
 
 
 def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
