@@ -137,7 +137,7 @@ class _BaseBuilder:
         deleted_column = self._model_cls.get_column_or_none(self._model_cls.deleted_at_column_name())
         self._stmt = self._stmt.where(deleted_column.is_(None))
 
-    def where(self, *conditions: ColumnExpressionArgument[bool]) -> "_BaseBuilder":
+    def where(self, *conditions: BinaryExpression | ColumnElement[bool]) -> "_BaseBuilder":
         """
         example:
         builder = QueryBuilder(MyModel)
