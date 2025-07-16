@@ -31,7 +31,7 @@ AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_
 
 
 @asynccontextmanager
-async def get_session(no_autoflush: bool = False) -> AsyncGenerator[AsyncSession, Any]:
+async def get_db_session(no_autoflush: bool = False) -> AsyncGenerator[AsyncSession, Any]:
     async with AsyncSessionLocal() as session:
         if no_autoflush:
             with session.no_autoflush:
