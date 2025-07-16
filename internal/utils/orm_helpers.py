@@ -1,7 +1,7 @@
 from typing import Any, Type
 
-from sqlalchemy import (ColumnElement, ColumnExpressionArgument,
-                        Delete, Select, Update, asc, delete, desc, func, or_, select, update)
+from sqlalchemy import (BinaryExpression, ColumnElement, Delete, Select, Update, asc, delete, desc, func, or_, select,
+                        update)
 from sqlalchemy.orm import InstrumentedAttribute, aliased
 
 from internal.infra.db import get_session
