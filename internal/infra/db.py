@@ -31,9 +31,16 @@ AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_
 
 
 @asynccontextmanager
-async def get_db_session(no_autoflush: bool = False) -> AsyncGenerator[AsyncSession, Any]:
+async def get_session(autoflush: bool = True) -> AsyncGenerator[AsyncSession, Any]:
     async with AsyncSessionLocal() as session:
-        if no_autoflush:
+        if autoflush:
+            try:
+                yield session
+            except Exception as e:
+                if session.is_active:
+                    await session.rollback()
+                raise e
+        else:
             with session.no_autoflush:
                 try:
                     yield session
@@ -41,13 +48,6 @@ async def get_db_session(no_autoflush: bool = False) -> AsyncGenerator[AsyncSess
                     if session.is_active:
                         await session.rollback()
                     raise e
-        else:
-            try:
-                yield session
-            except Exception as e:
-                if session.is_active:
-                    await session.rollback()
-                raise e
 
 
 def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
