@@ -51,6 +51,7 @@ def init_logger(env: str = "dev") -> loguru.logger:
             format=LogFormat.CONSOLE,
             level=LogConfig.LEVEL,
             enqueue=True,
+            diagnose=True,
             colorize=True
         )
     else:
