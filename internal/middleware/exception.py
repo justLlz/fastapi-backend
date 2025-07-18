@@ -1,6 +1,5 @@
-import traceback
-from starlette.types import ASGIApp, Receive, Scope, Send
 from starlette.requests import Request
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from pkg.exception import AppIgnoreException
 from pkg.logger_helper import logger
