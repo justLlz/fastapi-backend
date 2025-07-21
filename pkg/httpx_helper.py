@@ -39,7 +39,8 @@ class HTTPXClient:
             chunk_size: int = 1024
     ) -> AsyncGenerator[bytes, None]:
         url = url.strip()
-        logger.info(f"Stream Requesting: method={method}, url={url}")
+        logger.info(f"Stream Requesting: method={method}, url={url}, params={params}, json={json}, data={data}")
+
         combined_headers = {**self.headers, **(headers or {}), "Content-Type": "application/json"}
         if files:
             combined_headers.pop("Content-Type", None)
@@ -101,7 +102,7 @@ class HTTPXClient:
         :return: httpx.Response
         """
         url = url.strip()
-        logger.info(f"Requesting: method={method}, url={url}, json={json}")
+        logger.info(f"Requesting: method={method}, url={url}, params={params}, json={json}, data={data}")
 
         combined_headers = {**self.headers, **(headers or {}), "Content-Type": "application/json"}
         if files:
