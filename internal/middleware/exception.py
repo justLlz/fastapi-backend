@@ -1,3 +1,5 @@
+import traceback
+
 from starlette.requests import Request
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -20,6 +22,8 @@ class ExceptionHandlingMiddleware:
             await self.app(scope, receive, send)
         except BaseException as exc:
             if not isinstance(exc, AppIgnoreException):
-                logger.exception("Exception occurred: ")
-            response = response_factory.resp_500(message=str(exc))
+                tb_lines = traceback.format_exc().strip().split("\n")
+                last_3_lines = tb_lines[-3:] if len(tb_lines) > 3 else tb_lines
+                logger.error(f'''Exception occurred: {type(exc).__name__}={exc}.\n{"\n".join(last_3_lines)}''')
+            response = response_factory.resp_500()
             await response(scope, receive, send)
