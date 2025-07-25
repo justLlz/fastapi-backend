@@ -22,6 +22,7 @@ class BaseDao:
         return new_cls_querier(self._model_cls, include_deleted=True)
 
     def sub_querier(self):
+        pass
 
     @property
     def cls_updater(self) -> UpdateBuilder:
