@@ -17,11 +17,6 @@ from pkg.exception import AppHTTPException
 from pkg.logger_helper import logger
 
 
-class Sort:
-    ASC: str = "asc"
-    DESC: str = "desc"
-
-
 class BaseBuilder:
     """SQL查询构建器基类，提供模型类和方法的基本结构"""
 
@@ -155,36 +150,6 @@ class BaseBuilder:
         self._stmt = self._stmt.order_by(col.asc())
         return self
 
-    @staticmethod
-    def _parse_operator(column: InstrumentedAttribute, operator: str, value: Any) -> ColumnElement:
-        """解析操作符并生成条件"""
-        if operator == "eq":
-            return column == value
-        elif operator == "ne":
-            return column != value
-        elif operator == "gt":
-            return column > value
-        elif operator == "lt":
-            return column < value
-        elif operator == "ge":
-            return column >= value
-        elif operator == "le":
-            return column <= value
-        elif operator == "in":
-            return column.in_(value)
-        elif operator == "like":
-            return column.like(f"%{value}%")
-        elif operator == "ilike":
-            return column.ilike(f"%{value}%")
-        elif operator == "is_null":
-            return column.is_(None)
-        elif operator == "between":
-            if not isinstance(value, list | tuple) or len(value) != 2:
-                raise Exception("Operator between requires a list/tuple with two values")
-            return column.between(value[0], value[1])
-        else:
-            raise Exception(f"Unsupported operator: {operator}")
-
     def _apply_soft_delete_cond(self) -> None:
         """安全地添加软删除过滤条件"""
         deleted_column = self._model_cls.get_column_or_none(self._model_cls.deleted_at_column_name())
@@ -205,38 +170,6 @@ class BaseBuilder:
             return self
 
         self._stmt = self._stmt.where(*conditions)
-        return self
-
-    def where_by(self, **kwargs) -> "BaseBuilder":
-        """
-        支持 kwargs 的 key 与数据库字段名一致，value 是操作符字典
-        示例:
-        where(age={"gt": 30}, status={"in": [1, 2]})
-        查询 age > 30, age < 40, deleted_at=null
-        where(age={"gt": 30, "lt": 40}， deleted_at={"is_null": True})
-        """
-        conditions = []
-        for column_name, value in kwargs.items():
-            if not isinstance(column_name, str):
-                logger.warning(f"invalid column name: {column_name}, must be str")
-                continue
-            # 获取 SQLAlchemy 列对象
-            column = self._model_cls.get_column_or_none(column_name)
-            if column is None:
-                continue
-
-            # 如果值是字典（支持多个操作符）
-            if isinstance(value, dict):
-                for operator, val in value.items():
-                    condition = self._parse_operator(column, operator, val)
-                    conditions.append(condition)
-            # 默认等值查询（例如 age=30）
-            else:
-                conditions.append(column == value)
-
-        # 将所有条件用 AND 连接
-        if conditions:
-            self._stmt = self._stmt.where(*conditions)
         return self
 
 
