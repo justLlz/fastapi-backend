@@ -24,7 +24,7 @@ class ModelMixin(Base):
     deleted_at = Column(DateTime(timezone=False), nullable=True, default=None, server_default=None)
 
     @classmethod
-    async def add_all(cls, items: list[dict]):
+    async def add_all_dict(cls, items: list[dict]):
         if not items:
             return
 
@@ -34,7 +34,20 @@ class ModelMixin(Base):
                 async with sess.begin():
                     sess.add_all(ins_list)
         except Exception as e:
-            logger.error(f"{cls.__name__} add_all error: {e}")
+            logger.error(f"{cls.__name__} add_all_dict failed, error={e}")
+            raise e
+
+    @classmethod
+    async def add_all_ins(cls, ins_list: list["ModelMixin"]):
+        if not ins_list:
+            return
+
+        try:
+            async with get_session() as sess:
+                async with sess.begin():
+                    sess.add_all(ins_list)
+        except Exception as e:
+            logger.error(f"{cls.__name__} add_all_ins failed, error={e}")
             raise e
 
     async def save(self):
@@ -96,9 +109,12 @@ class ModelMixin(Base):
                 continue
             setattr(self, column_name, value)
 
-    def to_dict(self) -> dict:
+    def to_dict(self, *, exclude_column: list[str] = None) -> dict:
         d = {}
         for column_name in self.get_column_names():
+            if exclude_column and column_name in exclude_column:
+                continue
+
             val = getattr(self, column_name)
             d[column_name] = val
         return d
@@ -169,5 +185,15 @@ class ModelMixin(Base):
     @classmethod
     def get_column_or_raise(cls, column_name: str) -> InstrumentedAttribute:
         if column_name not in cls.__table__.columns:
-            raise Exception(f"{column_name} is not a real table column of {cls.__name__}")
+            raise ValueError(
+                f"{column_name} is not a real table column of {cls.__name__}"
+            )
         return getattr(cls, column_name)
+
+    def _set_col_maybe_none(self, column_name: str, default_value: Any):
+        column: InstrumentedAttribute = self.get_column_or_none(column_name)
+        if column:
+            if column.default is None or column.server_default is None:
+                setattr(self, column_name, None)
+            else:
+                setattr(self, column_name, default_value)
