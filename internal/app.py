@@ -41,16 +41,6 @@ def register_exception(app: FastAPI):
         _record_log_error("Validation Error", repr(exc))
         return response_factory.resp_422(message=f"Validation Error: {exc}")
 
-    @app.exception_handler(AppHTTPException)
-    async def app_http_exception_handler(_: Request, exc: AppHTTPException):
-        if exc_detail := exc.detail:
-            logger.error(f"AppHTTPException={exc_detail}")
-        return response_factory.response(code=exc.status_code, msg=exc_detail)
-
-    @app.exception_handler(HTTPException)
-    async def http_exception_handler(_: Request, exc: HTTPException):
-        return response_factory.response(code=exc.status_code, message=exc.detail)
-
 
 def register_middleware(app: FastAPI):
     # 6. GZip 中间件：压缩响应，提高传输效率
