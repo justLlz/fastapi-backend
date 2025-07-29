@@ -1,0 +1,1 @@
+REDIS_KEY_LOCK_PREFIX = "lock"
