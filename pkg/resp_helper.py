@@ -1,6 +1,5 @@
 import datetime
 from decimal import Decimal
-from functools import partial
 from typing import Any, Callable, Union
 
 from fastapi.responses import ORJSONResponse
@@ -55,6 +54,22 @@ class CustomORJSONResponse(ORJSONResponse):
             raise ValueError(f"CustomORJSONResponse serializer fail: {e}") from e
 
 
+class ErrorCode:
+    # 标准状态码
+
+    BadRequest: int = 40000
+    Unauthorized: int = 40001
+    NotFound: int = 40004
+    Forbidden: int = 40003
+    PayloadTooLarge: int = 40004
+    UnprocessableEntity: int = 40005
+
+    InternalServerError: int = 50000
+
+
+error_code = ErrorCode()
+
+
 class ResponseFactory:
     """
     # 使用示例
@@ -74,18 +89,6 @@ class ResponseFactory:
 
     _instance = None
 
-    # 标准状态码
-    Success: int = 20000
-
-    BadRequest: int = 40000
-    Unauthorized: int = 40001
-    NotFound: int = 40004
-    Forbidden: int = 40003
-    PayloadTooLarge: int = 40004
-    UnprocessableEntity: int = 40005
-
-    InternalServerError: int = 50000
-
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
@@ -95,28 +98,25 @@ class ResponseFactory:
     def _init_mapping(self):
         """初始化默认映射"""
         self._mapping = {
-            self.Success: self.resp_200,
-            200: self.resp_200,
-
-            self.BadRequest: self.resp_401,
+            error_code.BadRequest: self.resp_401,
             401: self.resp_401,
 
-            self.Unauthorized: self.resp_400,
+            error_code.Unauthorized: self.resp_400,
             400: self.resp_400,
 
-            self.NotFound: self.resp_404,
+            error_code.NotFound: self.resp_404,
             404: self.resp_404,
 
-            self.Forbidden: self.resp_403,
+            error_code.Forbidden: self.resp_403,
             403: self.resp_403,
 
-            self.PayloadTooLarge: self.resp_413,
+            error_code.PayloadTooLarge: self.resp_413,
             413: self.resp_413,
 
-            self.UnprocessableEntity: self.resp_422,
+            error_code.UnprocessableEntity: self.resp_422,
             422: self.resp_422,
 
-            self.InternalServerError: self.resp_500,
+            error_code.InternalServerError: self.resp_500,
             500: self.resp_500
         }
 
@@ -139,54 +139,46 @@ class ResponseFactory:
 
     # 预定义标准响应
     def resp_200(self, *, data: Any = None, message: str = "") -> ORJSONResponse:
-        return self._base_response(code=self.Success, data=data, message=message)
+        return self._base_response(code=20000, data=data, message=message)
 
     def resp_list(self, *, data: list, page: int, limit: int, total: int):
-        return self.resp_200(data={"item": data, "page": page, "limit": limit, "total": total})
+        return self.resp_200(data={"items": data, "page": page, "limit": limit, "total": total})
 
     def resp_400(self, *, data: Any = None, message: str = "") -> ORJSONResponse:
         message = f"Bad Request, {message}" if message else "Bad Request"
-        return self._base_response(code=self.BadRequest, data=data, message=message)
+        return self._base_response(code=error_code.BadRequest, data=data, message=message)
 
     def resp_401(self, *, data: Any = None, message: str = "") -> ORJSONResponse:
         message = f"Unauthorized, {message}" if message else "Unauthorized"
-        return self._base_response(code=self.Unauthorized, data=data, message=message)
+        return self._base_response(code=error_code.Unauthorized, data=data, message=message)
 
     def resp_403(self, *, data: Any = None, message: str = "Forbidden") -> ORJSONResponse:
         message = f"Forbidden, {message}" if message else "Forbidden"
-        return self._base_response(code=self.Forbidden, data=data, message=message)
+        return self._base_response(code=error_code.Forbidden, data=data, message=message)
 
     def resp_404(self, *, data: Any = None, message: str = "Not Found") -> ORJSONResponse:
         message = f"Not Found, {message}" if message else "Not Found"
-        return self._base_response(code=self.NotFound, data=data, message=message)
+        return self._base_response(code=error_code.NotFound, data=data, message=message)
 
     def resp_413(self, *, data: Any = None, message: str = "") -> ORJSONResponse:
         message = f"Payload Too Large, {message}" if message else "Payload Too Large"
-        return self._base_response(code=self.InternalServerError, data=data, message=message)
+        return self._base_response(code=error_code.InternalServerError, data=data, message=message)
 
     def resp_422(self, *, data: Any = None, message: str = "") -> ORJSONResponse:
         message = f"Unprocessable Entity, {message}" if message else "Unprocessable Entity"
-        return self._base_response(code=self.InternalServerError, data=data, message=message)
+        return self._base_response(code=error_code.InternalServerError, data=data, message=message)
 
     def resp_500(self, *, data: Any = None, message: str = "") -> ORJSONResponse:
         message = f"Internal Server Error, {message}" if message else "Internal Server Error"
-        return self._base_response(code=self.InternalServerError, data=data, message=message)
+        return self._base_response(code=error_code.InternalServerError, data=data, message=message)
 
     def response(self, *, code: int, data: Any = None, message: str = "") -> Callable:
         """获取响应构造器"""
-        if code not in self._mapping:
-            raise ValueError(f"Unregistered response code: {code}")
-        response_func = self._mapping[code]
-        return response_func(data=data, message=message)
+        if code in self._mapping:
+            response_func = self._mapping[code]
+            return response_func(data=data, message=message)
 
-    def register(self, code: int, *, default_message: str = ""):
-        """注册新响应类型（装饰器）"""
-
-        def decorator(f):
-            self._mapping[code] = partial(f, code=code, message=default_message)
-            return f
-
-        return decorator
+        return self._base_response(code=code, data=data, message=message)
 
 
 # 使用示例
