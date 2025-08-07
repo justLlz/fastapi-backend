@@ -81,8 +81,8 @@ class ResponseFactory:
     Unauthorized: int = 40001
     NotFound: int = 40004
     Forbidden: int = 40003
-    PayloadTooLarge: int = 413
-    UnprocessableEntity: int = 422
+    PayloadTooLarge: int = 40004
+    UnprocessableEntity: int = 40005
 
     InternalServerError: int = 50000
 

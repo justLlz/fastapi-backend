@@ -4,7 +4,7 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from pkg.exception import AppHTTPException, AppIgnoreException
+from pkg.exception import AppException, AppIgnoreException
 from pkg.logger_helper import logger
 from pkg.resp_helper import response_factory
 
@@ -22,7 +22,7 @@ class ExceptionHandlingMiddleware:
         try:
             await self.app(scope, receive, send)
         except BaseException as exc:
-            if isinstance(exc, AppHTTPException | HTTPException):
+            if isinstance(exc, AppException | HTTPException):
                 response = response_factory.response(code=exc.status_code, msg=exc.detail)
             elif isinstance(exc, AppIgnoreException):
                 response = response_factory.resp_500()

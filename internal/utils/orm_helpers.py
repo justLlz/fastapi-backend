@@ -12,7 +12,7 @@ from internal.models import ModelMixin
 from internal.utils.context import get_user_id_context_var
 from internal.utils.mixin_type import MixinModelType
 from pkg import get_utc_without_tzinfo
-from pkg.exception import AppHTTPException
+from pkg.exception import AppException
 
 from pkg.logger_helper import logger
 
@@ -33,7 +33,7 @@ class BaseBuilder:
             TypeError: 如果 model_class 不是有效的模型类
         """
         if not isinstance(model_cls, type) or not issubclass(model_cls, ModelMixin):
-            raise AppHTTPException(
+            raise AppException(
                 500, f"model_class must be a subclass of ModelMixin, and actually gets: {type(model_cls)}",
             )
 

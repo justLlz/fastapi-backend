@@ -2,12 +2,10 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.exceptions import HTTPException, RequestValidationError
+from fastapi.exceptions import RequestValidationError
 
 from internal.config.setting import setting
 from pkg import SYS_ENV, colorprint
-from pkg.exception import AppHTTPException
-from pkg.logger_helper import logger
 from pkg.resp_helper import response_factory
 
 
@@ -28,7 +26,7 @@ def create_app() -> FastAPI:
 
 
 def register_router(app: FastAPI):
-    from internal.controller.test import router as test_router
+    from internal.controller.web.test import router as test_router
     app.include_router(test_router)
 
 
