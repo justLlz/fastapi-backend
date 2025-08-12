@@ -2,10 +2,10 @@ import traceback
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import (Column, ColumnElement, Delete, Function, Select, Subquery, Update, delete, distinct, func, or_,
-                        select, update)
+from sqlalchemy import (Column, ColumnExpressionArgument, Delete, Function, Select, Subquery, Update,
+                        delete, distinct, func, or_, select, update)
 from sqlalchemy.orm import InstrumentedAttribute, aliased
-from sqlalchemy.sql.elements import BinaryExpression
+from sqlalchemy.sql.elements import BinaryExpression, ClauseElement
 
 from internal.infra.db import get_session
 from internal.models import ModelMixin
@@ -150,12 +150,12 @@ class BaseBuilder:
         self._stmt = self._stmt.order_by(col.asc())
         return self
 
-    def _apply_soft_delete_cond(self) -> None:
+    def _apply_delete_at_is_none(self) -> None:
         """安全地添加软删除过滤条件"""
         deleted_column = self._model_cls.get_column_or_none(self._model_cls.deleted_at_column_name())
         self._stmt = self._stmt.where(deleted_column.is_(None))
 
-    def where(self, *conditions: BinaryExpression | ColumnElement[bool]) -> "BaseBuilder":
+    def where(self, *conditions: ClauseElement) -> "BaseBuilder":
         """
         example:
         builder = QueryBuilder(MyModel)
@@ -180,7 +180,7 @@ class QueryBuilder(BaseBuilder):
             model_cls: type[ModelMixin],
             *,
             include_deleted: bool | None = None,
-            initial_where: ColumnElement | None = None,
+            initial_where: ColumnExpressionArgument | None = None,
             custom_stmt: Select | None = None,
 
     ):
@@ -204,8 +204,8 @@ class QueryBuilder(BaseBuilder):
             self._stmt: Select = select(self._model_cls)
 
             # 默认过滤已删除记录
-            if include_deleted is True and self._model_cls.has_deleted_at_column:
-                self._apply_soft_delete_cond()
+            if include_deleted is False and self._model_cls.has_deleted_at_column:
+                self._apply_delete_at_is_none()
 
             # 添加初始WHERE条件
             if initial_where is not None:
@@ -220,8 +220,8 @@ class QueryBuilder(BaseBuilder):
         return self._stmt.subquery()
 
     async def all(self, *, include_deleted: bool | None = None) -> list[MixinModelType]:
-        if include_deleted is True and self._model_cls.has_deleted_at_column:
-            self._apply_soft_delete_cond()
+        if include_deleted is False and self._model_cls.has_deleted_at_column:
+            self._apply_delete_at_is_none()
 
         async with get_session() as sess:
             try:
@@ -232,8 +232,8 @@ class QueryBuilder(BaseBuilder):
         return data
 
     async def first(self, *, include_deleted: bool | None = None) -> MixinModelType | None:
-        if include_deleted is True and self._model_cls.has_deleted_at_column:
-            self._apply_soft_delete_cond()
+        if include_deleted is False and self._model_cls.has_deleted_at_column:
+            self._apply_delete_at_is_none()
 
         async with get_session() as sess:
             try:
@@ -267,9 +267,9 @@ class CountBuilder(BaseBuilder):
             self,
             model_cls: type[ModelMixin],
             *,
-            count_column: InstrumentedAttribute | None = None,
+            count_column: InstrumentedAttribute = None,
             is_distinct: bool = False,
-            include_deleted: bool | None = None
+            include_deleted: bool = None
     ):
         """
         计数查询构建器
@@ -293,8 +293,8 @@ class CountBuilder(BaseBuilder):
         self._stmt: Select = select(expression)
 
         # 默认过滤已删除记录
-        if include_deleted is True and self._model_cls.has_deleted_at_column():
-            self._apply_soft_delete_cond()
+        if include_deleted is False and self._model_cls.has_deleted_at_column():
+            self._apply_delete_at_is_none()
 
     @property
     def count_stmt(self) -> Select:
@@ -476,7 +476,7 @@ class DeleteBuilder(BaseBuilder):
             删除的记录数
 
         异常:
-            HTTPException: 当删除操作失败时抛出
+            Exception: 当删除操作失败时抛出
         """
         async with get_session() as sess:
             try:
@@ -495,7 +495,7 @@ class DeleteBuilder(BaseBuilder):
                 raise Exception(f"{self._model_cls.__name__} delete error: {traceback.format_exc()}") from e
 
 
-def _validate_model_cls(model_cls: type, expected_type: type = type, subclass_of: type = ModelMixin):
+def _validate_model_cls(model_cls: type | None, expected_type: type = type, subclass_of: type = ModelMixin):
     """校验 model_cls 是否为指定的类型且是指定类的子类"""
     if model_cls is None:
         raise Exception("model_cls cannot be None")
@@ -522,10 +522,12 @@ def _validate_model_ins(model_ins: object, expected_type: type = ModelMixin):
         )
 
 
-def new_cls_querier(model_cls: type[ModelMixin],
-                    *,
-                    include_deleted: bool | None = None,
-                    initial_where: ColumnElement | None = None) -> QueryBuilder:
+def new_cls_querier(
+        model_cls: type[ModelMixin],
+        *,
+        include_deleted: bool | None = None,
+        initial_where: ColumnExpressionArgument | None = None
+) -> QueryBuilder:
     """创建一个新的查询器实例
 
     参数:
@@ -543,7 +545,7 @@ def new_sub_querier(
         *,
         subquery: Subquery,
         include_deleted: bool | None = None,
-        initial_where: ColumnElement | None = None
+        initial_where: ColumnExpressionArgument | None = None
 ) -> QueryBuilder:
     """创建一个新的子查询器实例
 
@@ -569,7 +571,7 @@ def new_custom_querier(
         *,
         custom_stmt: Select,
         include_deleted: bool | None = None,
-        initial_where: ColumnElement | None = None
+        initial_where: ColumnExpressionArgument | None = None
 ) -> QueryBuilder:
     """创建一个新的自定义查询器实例
 
@@ -596,7 +598,7 @@ def new_cls_updater(model_cls: type[ModelMixin]) -> UpdateBuilder:
         model_cls: 必须是 ModelMixin 的子类（不是实例）
 
     Raises:
-        HTTPException: 当输入无效时返回500错误
+        Exception: 当输入无效时返回500错误
 
     Returns:
         UpdateBuilder: 更新器实例
@@ -612,7 +614,7 @@ def new_ins_updater(model_ins: ModelMixin) -> UpdateBuilder:
         model_ins: 必须是 ModelMixin 的非空实例
 
     Raises:
-        HTTPException: 当输入无效时返回500错误
+        Exception: 当输入无效时返回500错误
 
     Returns:
         UpdateBuilder: 更新器实例
@@ -641,7 +643,7 @@ def new_ins_deleter(model_ins: ModelMixin) -> DeleteBuilder:
         model_ins: 必须是 ModelMixin 的非空实例
 
     Raises:
-        HTTPException: 当输入无效时返回500错误
+        Exception: 当输入无效时返回500错误
 
     Returns:
         DeleteBuilder: 删除器实例
@@ -697,7 +699,7 @@ class BaseORMHelper:
 
     @classmethod
     def querier(cls, model_cls: type[ModelMixin]):
-        return new_cls_querier(model_cls)
+        return new_cls_querier(model_cls, include_deleted=False)
 
     @classmethod
     def querier_include_deleted(cls, model_cls: type[ModelMixin]):
