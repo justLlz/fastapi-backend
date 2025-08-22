@@ -8,34 +8,31 @@ from pkg import BASE_DIR
 
 
 class BaseConfig(BaseSettings):
+    # 基础配置
     DEBUG: bool = True
-
-    SECRET_KEY: str
+    SECRET_KEY: str = "CHANGE_ME"
 
     # JWT 配置
     JWT_ALGORITHM: str = "HS256"
 
     # CORS 配置
-    BACKEND_CORS_ORIGINS: List[str]
+    BACKEND_CORS_ORIGINS: List[str] = ["*"]
 
     # MySQL 配置
-    MYSQL_USERNAME: str
-    MYSQL_PASSWORD: str
-    MYSQL_HOST: Union[IPvAnyAddress, str]
-    MYSQL_PORT: str
-    MYSQL_DATABASE: str
+    MYSQL_USERNAME: str = "root"
+    MYSQL_PASSWORD: str = "root"
+    MYSQL_HOST: Union[IPvAnyAddress, str] = "127.0.0.1"
+    MYSQL_PORT: str = "3306"
+    MYSQL_DATABASE: str = "app_db"
 
     # Redis 配置
-    REDIS_HOST: str
-    REDIS_PASSWORD: str
-    REDIS_DB: int
-    REDIS_PORT: int
+    REDIS_HOST: str = "127.0.0.1"
+    REDIS_PASSWORD: str = ""
+    REDIS_DB: int = 0
+    REDIS_PORT: int = 6379
 
+    # Token 过期时间（分钟）
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-
-    class Config:
-        case_sensitive = True
-        env_file_encoding = "utf-8"
 
     @property
     def sqlalchemy_database_uri(self) -> str:
@@ -57,14 +54,16 @@ class LocalConfig(BaseConfig):
     DEBUG: bool = True
 
     class Config:
-        env_file = (BASE_DIR / "configs" / ".env.local").as_posix()
+        case_sensitive = True
         env_file_encoding = "utf-8"
+        env_file = (BASE_DIR / "configs" / ".env.local").as_posix()
 
 
 class DevelopmentConfig(BaseConfig):
     DEBUG: bool = True
 
     class Config:
+        case_sensitive = True
         env_file = (BASE_DIR / "configs" / ".env.dev").as_posix()
         env_file_encoding = "utf-8"
 
@@ -73,6 +72,7 @@ class TestingConfig(BaseConfig):
     DEBUG = False
 
     class Config:
+        case_sensitive = True
         env_file = (BASE_DIR / "configs" / ".env.test").as_posix()
         env_file_encoding = "utf-8"
 
@@ -81,5 +81,6 @@ class ProductionConfig(BaseConfig):
     DEBUG = False
 
     class Config:
+        case_sensitive = True
         env_file = (BASE_DIR / "configs" / ".env.prod").as_posix()
         env_file_encoding = "utf-8"

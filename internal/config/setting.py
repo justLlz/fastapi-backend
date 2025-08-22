@@ -27,7 +27,7 @@ def init_setting() -> BaseConfig:
         raise Exception(f"Env file not found: {env_file_path}")
 
     colorprint.green(f"Env file path: {env_file_path}.")
-    s = config_class(_env_file=env_file_path, _env_file_encoding="utf-8")
+    s = config_class()
     colorprint.green("Init setting successfully.")
     colorprint.yellow("==========================")
     for k, v in s.dict().items():
