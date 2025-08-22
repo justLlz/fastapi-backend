@@ -12,7 +12,7 @@ from internal.models import ModelMixin
 from internal.utils.context import get_user_id_context_var
 from internal.utils.mixin_type import MixinModelType
 from pkg import get_utc_without_tzinfo
-from pkg.exception import AppException
+from internal.utils.exception import AppException
 
 from pkg.logger_helper import logger
 

@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from pkg.exception import AppIgnoreException
+from internal.utils.exception import AppIgnoreException
 from pkg.logger_helper import logger
 
 
