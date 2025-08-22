@@ -2,10 +2,9 @@ from fastapi import Request
 
 from internal.dao.user import user_dao
 from internal.models.user import User
-from internal.service import BaseService
 
 
-class UserService(BaseService):
+class UserService:
 
     @staticmethod
     async def get_user_by_phone(request: Request) -> User:
@@ -14,4 +13,4 @@ class UserService(BaseService):
         return user
 
 
-user_srv = UserService()
+user_svc = UserService()

@@ -14,7 +14,7 @@ from internal.utils.orm_helpers import new_cls_querier, new_cls_updater, new_cou
 from pkg.logger_helper import logger
 from pkg.resp_helper import response_factory
 
-router = APIRouter(prefix="/test", tags=["test"])
+router = APIRouter(prefix="/test", tags=["public v1 test"])
 
 
 @router.get("/test_raise_exception")

@@ -26,8 +26,14 @@ def create_app() -> FastAPI:
 
 
 def register_router(app: FastAPI):
-    from internal.controller.web.test import router as test_router
-    app.include_router(test_router)
+    from internal.controllers import web
+    app.include_router(web.router)
+    from internal.controllers import internalapi
+    app.include_router(internalapi.router)
+    from internal.controllers import publicapi
+    app.include_router(publicapi.router)
+    from internal.controllers import serviceapi
+    app.include_router(serviceapi.router)
 
 
 def register_exception(app: FastAPI):
@@ -53,9 +59,9 @@ def register_middleware(app: FastAPI):
     from internal.middleware.auth import AuthMiddleware
     app.add_middleware(AuthMiddleware)
 
-    from internal.middleware.exception import ExceptionHandlingMiddleware
+    from internal.middleware.exception import ExceptionHandlerMiddleware
     # 3. 异常处理中间件
-    app.add_middleware(ExceptionHandlingMiddleware)
+    app.add_middleware(ExceptionHandlerMiddleware)
 
     # 2. 日志中间件：记录请求和响应的日志，监控 API 性能和请求流
     from internal.middleware.recorder import RecorderMiddleware
