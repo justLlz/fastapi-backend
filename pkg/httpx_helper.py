@@ -7,7 +7,6 @@ from urllib.parse import urlparse
 
 import httpx
 
-from internal.utils.exception import AppIgnoreException
 from pkg.logger_helper import logger
 
 
@@ -67,15 +66,16 @@ class HTTPXClient:
                 err_text = err_bytes.decode(errors="ignore")
                 logger.error(f"HTTPStatusError, status_code={status_code}, err={err_text}")
             except Exception as e:
-                logger.error(f"HTTPStatusError, content read failed: {e}")
+                logger.error("HTTPStatusError, content read failed")
+                raise e
 
-            raise AppIgnoreException()
+            raise exc
         except httpx.RequestError as exc:
-            logger.error(f"HTTPxRequestError, err={exc}")
-            raise AppIgnoreException() from exc
+            logger.error(f"_stream HTTPxRequestError")
+            raise exc
         except Exception as exc:
-            logger.error(f"UnexpectedError, err={exc}")
-            raise AppIgnoreException()
+            logger.error(f"_stream UnexpectedError")
+            raise exc
 
     async def _request(
             self,
@@ -130,27 +130,27 @@ class HTTPXClient:
                 resp_content = exc.response.text
 
             logger.error(
-                f"HTTPxStatusError, status_code={status_code}, err={exc}, response={resp_content}"
+                f"_request HTTPxStatusError, status_code={status_code}, err={exc}, response={resp_content}"
             )
 
             if to_return:
                 return status_code, None, resp_content
 
-            raise AppIgnoreException() from exc
+            raise exc
         except httpx.RequestError as exc:
-            logger.error(f"HTTPxRequestError, err={exc}")
+            logger.error(f"_request HTTPxRequestError")
 
             if to_return:
                 return None, None, str(exc)
 
-            raise AppIgnoreException() from exc
+            raise exc
         except Exception as exc:
-            logger.error(f"UnexpectedError, err={exc}")
+            logger.error(f"_request UnexpectedError")
 
             if to_return:
                 return None, None, str(exc)
 
-            raise AppIgnoreException() from exc
+            raise exc
 
     async def get(
             self,

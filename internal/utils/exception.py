@@ -15,10 +15,6 @@ class AppException(Exception):
         self.headers = headers
 
 
-class AppIgnoreException(Exception):
-    pass
-
-
 def get_last_exec_tb(exc: BaseException, lines: int = 3) -> str:
     tb_lines = traceback.format_exception(type(exc), exc, exc.__traceback__)
     last_5_lines = tb_lines[-lines:] if len(tb_lines) >= lines else tb_lines

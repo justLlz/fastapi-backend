@@ -23,8 +23,6 @@ class ExceptionHandlerMiddleware:
             logger.error(f'''Exception occurred:\n{get_last_exec_tb(exc)}''')
             if isinstance(exc, AppException | HTTPException):
                 response = response_factory.response(code=exc.status_code, msg=exc.detail)
-            elif isinstance(exc, AppIgnoreException):
-                response = response_factory.resp_500()
             else:
                 response = response_factory.resp_500()
             await response(scope, receive, send)
