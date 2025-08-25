@@ -152,7 +152,7 @@ class BaseBuilder:
 
     def _apply_delete_at_is_none(self) -> None:
         """安全地添加软删除过滤条件"""
-        deleted_column = self._model_cls.get_column_or_none(self._model_cls.deleted_at_column_name())
+        deleted_column = self._model_cls.get_column(self._model_cls.deleted_at_column_name())
         self._stmt = self._stmt.where(deleted_column.is_(None))
 
     def where(self, *conditions: ClauseElement) -> "BaseBuilder":
@@ -341,7 +341,7 @@ class UpdateBuilder(BaseBuilder):
 
         # 如果是实例更新，添加ID条件
         if model_ins is not None:
-            model_id_column: InstrumentedAttribute = self._model_cls.get_column_or_none("id")
+            model_id_column: InstrumentedAttribute = self._model_cls.get_column("id")
             self._stmt = self._stmt.where(model_id_column == model_ins.id)
 
     def update(self, **kwargs) -> "UpdateBuilder":
@@ -461,7 +461,7 @@ class DeleteBuilder(BaseBuilder):
 
         # 如果是实例删除，添加ID条件
         if model_ins is not None:
-            model_id_column: InstrumentedAttribute = self._model_cls.get_column_or_none("id")
+            model_id_column: InstrumentedAttribute = self._model_cls.get_column("id")
             self._stmt = self._stmt.where(model_id_column == model_ins.id)
 
     @property

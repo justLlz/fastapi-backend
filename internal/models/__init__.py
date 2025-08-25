@@ -176,10 +176,11 @@ class ModelMixin(Base):
         return list(cls.__table__.columns.keys())
 
     @classmethod
-    def get_column_or_none(cls, column_name: str) -> InstrumentedAttribute | None:
+    def get_column(cls, column_name: str) -> InstrumentedAttribute:
         if column_name not in cls.__table__.columns:
-            logger.warning(f"{column_name} is not a real table column of {cls.__name__}")
-            return None
+            raise ValueError(
+                f"{column_name} is not a real table column of {cls.__name__}"
+            )
         return getattr(cls, column_name)
 
     @classmethod
@@ -189,11 +190,3 @@ class ModelMixin(Base):
                 f"{column_name} is not a real table column of {cls.__name__}"
             )
         return getattr(cls, column_name)
-
-    def _set_col_maybe_none(self, column_name: str, default_value: Any):
-        column: InstrumentedAttribute = self.get_column_or_none(column_name)
-        if column:
-            if column.default is None or column.server_default is None:
-                setattr(self, column_name, None)
-            else:
-                setattr(self, column_name, default_value)
