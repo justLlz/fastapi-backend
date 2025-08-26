@@ -1,15 +1,14 @@
 import datetime
 import hashlib
 import os
+import random
 import re
 import string
 import time
-import random
 import uuid
 from pathlib import Path
 from urllib.parse import urlencode, urlunparse
 
-import colorama
 import orjson
 import pytz
 import shortuuid
@@ -25,8 +24,18 @@ def get_base_dir() -> Path:
     return Path(__file__).parent.parent.absolute()
 
 
-def get_sys_env_var() -> str:
+def get_sys_env() -> str:
     return str.lower(os.getenv("ENV", "unknown"))
+
+
+def get_sys_namespace() -> str:
+    if SYS_ENV == "local":
+        namespace = "dev"
+    elif SYS_ENV == "local_test":
+        namespace = "test"
+    else:
+        namespace = SYS_ENV
+    return namespace
 
 
 def orjson_dumps(*args, **kwargs):
@@ -58,7 +67,7 @@ def datetime_to_string(val: datetime.datetime) -> str:
 
 
 # 将字符串转换为 datetime 对象
-def iso_to_datetime(iso_string: str) -> datetime:
+def iso_to_datetime(iso_string: str) -> datetime.datetime:
     """
     将 ISO 格式的时间字符串转换为 datetime 对象。
 
@@ -73,7 +82,7 @@ def iso_to_datetime(iso_string: str) -> datetime:
         raise ValueError(f"Invalid ISO format string: {iso_string}") from e
 
 
-def convert_to_utc(val: datetime) -> datetime.datetime:
+def convert_to_utc(val: datetime.datetime) -> datetime.datetime:
     """
     将没有时区信息的东八区时间转换为 UTC 时间
 
@@ -111,11 +120,11 @@ def get_utc_timestamp() -> int:
     return int(datetime.datetime.now(tz=datetime.timezone.utc).timestamp())
 
 
-def get_utc_without_tzinfo() -> datetime:
+def get_utc_without_tzinfo() -> datetime.datetime:
     return datetime.datetime.now(datetime.UTC).replace(microsecond=0, tzinfo=None)
 
 
-def utc_datetime_with_no_tz() -> datetime:
+def utc_datetime_with_no_tz() -> datetime.datetime:
     return datetime.datetime.now().replace(tzinfo=None, microsecond=0)
 
 
@@ -275,27 +284,6 @@ def build_url(
     return urlunparse((scheme, netloc, path, "", query_string, fragment))
 
 
-class ColorPrint:
-    colorama.init(autoreset=True)
-
-    @staticmethod
-    def red(text):
-        print(colorama.Fore.RED + text)
-
-    @staticmethod
-    def green(text):
-        print(colorama.Fore.GREEN + text)
-
-    @staticmethod
-    def yellow(text):
-        print(colorama.Fore.YELLOW + text)
-
-    @staticmethod
-    def blue(text):
-        print(colorama.Fore.BLUE + text)
-
-
-colorprint = ColorPrint()
-
 BASE_DIR: Path = get_base_dir()
-SYS_ENV: str = get_sys_env_var()
+SYS_ENV: str = get_sys_env()
+SYS_NAMESPACE: str = get_sys_namespace()

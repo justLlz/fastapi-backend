@@ -5,7 +5,7 @@ from pathlib import Path
 
 import loguru
 
-from pkg import BASE_DIR, SYS_ENV, colorprint
+from pkg import BASE_DIR, SYS_ENV
 
 
 class LogConfig:
@@ -13,15 +13,16 @@ class LogConfig:
     LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     DIR: Path = BASE_DIR / "logs"
     FILE_NAME: str = "app_{time:YYYY-MM-DD}.log"
-    ROTATION: str = os.getenv("LOG_ROTATION", "00:00 or 100 MB")  # 支持大小/时间轮转
+    ROTATION: str = os.getenv("LOG_ROTATION", "00:00")  # 支持大小/时间轮转
     RETENTION: str = os.getenv("LOG_RETENTION", "30 days")
     COMPRESSION: str = "zip"  # 压缩格式
 
 
 class LogFormat:
     """日志格式模板"""
-    CONSOLE = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{line}</cyan> | <magenta>{extra[trace_id]}</magenta> - <level>{message}</level>"
-    FILE = "{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{line} | {extra[trace_id]} - {message}"
+    CONSOLE = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | <magenta>{extra[trace_id]}</magenta> - <level>{message}</level>"
+
+    FILE = "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} | {extra[trace_id]} - {message}"
 
 
 def remove_logging_logger():
@@ -32,30 +33,30 @@ def remove_logging_logger():
     pass
 
 
-def init_logger(env: str = "dev") -> loguru.logger:
-    colorprint.green("Init logger...")
-    """设置日志记录器的配置"""
+def init_logger(env: str = "local"):
+    loguru_logger = loguru.logger
+    loguru_logger.info("Init logger...")
+
     try:
         LogConfig.DIR.mkdir(parents=True, exist_ok=True)
     except OSError as e:
-        colorprint.red(f"Failed to create log directory: {e}")
-        raise
+        loguru_logger.error(f"Failed to create log directory: {e}")
+        sys.exit(1)
 
-    l = loguru.logger
-    l.remove()
-    l.configure(extra={"trace_id": "-"})
+    loguru_logger.remove()
+    loguru_logger.configure(extra={"trace_id": "-"})
 
-    if env in ("dev", "local"):
-        l.add(
+    if env in ("local", "local_test"):
+        loguru_logger.add(
             sink=sys.stderr,
             format=LogFormat.CONSOLE,
             level=LogConfig.LEVEL,
             enqueue=True,
-            diagnose=True,
-            colorize=True
+            colorize=True,
+            diagnose=True
         )
     else:
-        l.add(
+        loguru_logger.add(
             sink=LogConfig.DIR / LogConfig.FILE_NAME,
             format=LogFormat.FILE,
             level=LogConfig.LEVEL,
@@ -63,14 +64,11 @@ def init_logger(env: str = "dev") -> loguru.logger:
             retention=LogConfig.RETENTION,
             compression=LogConfig.COMPRESSION,
             diagnose=True,
-            enqueue=True,
-
+            enqueue=True
         )
-    colorprint.green("Init logger successfully.")
-    return l
+
+    loguru_logger.info("Init logger successfully.")
+    return loguru_logger
 
 
 logger = init_logger(SYS_ENV)
-"""
-logger.error(f"error message, err: {traceback.format_exc()}")
-"""

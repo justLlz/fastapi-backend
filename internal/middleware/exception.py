@@ -2,7 +2,7 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from internal.utils.exception import AppException, AppIgnoreException, get_last_exec_tb
+from internal.utils.exception import AppException, get_last_exec_tb
 from pkg.logger_helper import logger
 from pkg.resp_helper import response_factory
 

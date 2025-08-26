@@ -5,7 +5,8 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 
 from internal.config.setting import setting
-from pkg import SYS_ENV, colorprint
+from pkg import SYS_ENV
+from pkg.logger_helper import logger
 from pkg.resp_helper import response_factory
 
 
@@ -82,13 +83,13 @@ def register_middleware(app: FastAPI):
 # 定义 lifespan 事件处理器
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    colorprint.green("Init lifespan...")
+    logger.info("Init lifespan...")
     # 检查环境变量
     if SYS_ENV not in ["local", "dev", "test", "prod"]:
         raise Exception(f"Invalid ENV: {SYS_ENV}")
 
-    colorprint.green("Check completed, Application will start.")
+    logger.info("Check completed, Application will start.")
     # 进入应用生命周期
     yield
     # 关闭时的清理逻辑
-    colorprint.blue("Application is about to close.")
+    logger.warning("Application is about to close.")

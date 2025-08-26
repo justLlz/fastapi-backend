@@ -2,13 +2,14 @@ from functools import lru_cache
 from pathlib import Path
 
 from internal.config import BaseConfig, DevelopmentConfig, LocalConfig, ProductionConfig, TestingConfig
-from pkg import BASE_DIR, SYS_ENV, colorprint
+from pkg import BASE_DIR, SYS_ENV, SYS_NAMESPACE
+from pkg.logger_helper import logger
 
 
 @lru_cache
 def init_setting() -> BaseConfig:
-    colorprint.green("Init setting...")
-    colorprint.green(f"Current environment: {SYS_ENV}.")
+    logger.info("Init setting...")
+    logger.info(f"Current environment: {SYS_ENV}.")
 
     # 根据环境变量选择配置
     config_classes_gather = {
@@ -21,18 +22,18 @@ def init_setting() -> BaseConfig:
     if not config_class:
         raise Exception(f"Invalid FAST_API_ENV value: {SYS_ENV}")
 
-    env_file_path = (BASE_DIR / "configs" / f".env.{SYS_ENV}").as_posix()
+    env_file_path = (BASE_DIR / "configs" / f".env.{SYS_NAMESPACE}").as_posix()
     # 检查env_file_path是否存在
     if not Path(env_file_path).exists():
         raise Exception(f"Env file not found: {env_file_path}")
 
-    colorprint.green(f"Env file path: {env_file_path}.")
+    logger.info(f"Env file path: {env_file_path}.")
     s = config_class()
-    colorprint.green("Init setting successfully.")
-    colorprint.yellow("==========================")
+    logger.info("Init setting successfully.")
+    logger.info("==========================")
     for k, v in s.dict().items():
-        colorprint.yellow(f"{k}: {v}")
-    colorprint.yellow("==========================")
+        logger.info(f"{k}: {v}")
+    logger.info("==========================")
     return s
 
 
