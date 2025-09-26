@@ -43,8 +43,8 @@ class ExceptionHandlerMiddleware:
                             await send(
                                 {"type": "http.response.body", "body": b"", "more_body": False}
                             )
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.error(f"Exception occurred when sending response:\n{get_last_exec_tb(e)}")
                     return
 
                 if isinstance(exc, AppException):
