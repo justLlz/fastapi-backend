@@ -1,4 +1,3 @@
-from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.types import ASGIApp, Receive, Scope, Send
 
@@ -12,17 +11,21 @@ class ExceptionHandlerMiddleware:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
-        if scope["type"] != "http":
+        if (scope_type := scope["type"]) == "websocket":
             await self.app(scope, receive, send)
             return
-
-        _ = Request(scope, receive=receive)
-        try:
+        elif scope_type == "lifespan":
             await self.app(scope, receive, send)
-        except BaseException as exc:
-            logger.error(f'''Exception occurred:\n{get_last_exec_tb(exc)}''')
-            if isinstance(exc, AppException):
-                response = response_factory.response(code=exc.status_code, msg=exc.detail)
-            else:
-                response = response_factory.resp_500()
-            await response(scope, receive, send)
+            return
+        elif scope_type == "http":
+            try:
+                await self.app(scope, receive, send)
+            except Exception as exc:
+                logger.error(f'''Exception occurred:\n{get_last_exec_tb(exc)}''')
+                if isinstance(exc, AppException):
+                    response = response_factory.response(code=exc.code, msg=exc.detail)
+                else:
+                    response = response_factory.resp_500()
+                await response(scope, receive, send)
+        else:
+            await self.app(scope, receive, send)
