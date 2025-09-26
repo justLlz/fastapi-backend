@@ -11,7 +11,7 @@ async def verify_jwt_token(token: str) -> tuple[int | None, bool]:
     验证 Token = request.headers.get("Authorization")
     """
     if not token or not token.startswith("Bearer "):
-        return False
+        return None, False
 
     token = token.split(" ")[1]
     try:

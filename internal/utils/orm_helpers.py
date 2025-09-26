@@ -5,15 +5,14 @@ from typing import Any
 from sqlalchemy import (Column, ColumnExpressionArgument, Delete, Function, Select, Subquery, Update,
                         delete, distinct, func, or_, select, update)
 from sqlalchemy.orm import InstrumentedAttribute, aliased
-from sqlalchemy.sql.elements import BinaryExpression, ClauseElement, ColumnElement
+from sqlalchemy.sql.elements import ClauseElement, ColumnElement
 
 from internal.infra.db import get_session
 from internal.models import ModelMixin
 from internal.utils.context import get_user_id_context_var
+from internal.utils.exception import AppException
 from internal.utils.mixin_type import MixinModelType
 from pkg import get_utc_without_tzinfo
-from internal.utils.exception import AppException
-
 from pkg.logger_helper import logger
 
 
