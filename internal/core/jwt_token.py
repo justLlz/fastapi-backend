@@ -6,7 +6,7 @@ from loguru import logger
 from internal.config.setting import setting
 
 
-async def verify_jwt_token(token: str) -> (int | None, bool):
+async def verify_jwt_token(token: str) -> tuple[int | None, bool]:
     """
     验证 Token = request.headers.get("Authorization")
     """

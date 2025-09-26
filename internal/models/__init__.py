@@ -2,7 +2,6 @@
 
 from sqlalchemy import BigInteger, Column, DateTime
 from sqlalchemy.orm import InstrumentedAttribute
-from starlette import status
 
 from internal.infra.db import Base, get_session
 from internal.utils.context import get_user_id_context_var
@@ -174,11 +173,7 @@ class ModelMixin(Base):
         return list(cls.__table__.columns.keys())
 
     @classmethod
-    def get_column(cls, column_name: str) -> InstrumentedAttribute:
-        if column_name not in cls.__table__.columns:
-            raise ValueError(
-                f"{column_name} is not a real table column of {cls.__name__}"
-            )
+    def get_column_or_none(cls, column_name: str) -> InstrumentedAttribute:
         return getattr(cls, column_name)
 
     @classmethod
@@ -191,4 +186,4 @@ class ModelMixin(Base):
 
     @classmethod
     def get_creator_id_column(cls) -> InstrumentedAttribute:
-        return cls.get_column(cls.creator_id_column_name())
+        return cls.get_column_or_none(cls.creator_id_column_name())

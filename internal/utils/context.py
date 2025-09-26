@@ -1,6 +1,6 @@
 from contextvars import ContextVar
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 
 from internal.utils.exception import AppException
 from pkg.logger_helper import logger
