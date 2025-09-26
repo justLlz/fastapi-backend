@@ -1,4 +1,3 @@
-from starlette.requests import Request
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from internal.utils.exception import AppException, get_last_exec_tb
