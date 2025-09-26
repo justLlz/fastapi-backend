@@ -1,6 +1,11 @@
 from fastapi import APIRouter
-
-router = APIRouter(prefix="/v1/public")
 from internal.controllers.publicapi import test
 
-router.include_router(test.router)
+router = APIRouter(prefix="/v1/public")
+
+routers = [
+    test.router
+]
+
+for r in routers:
+    router.include_router(r)

@@ -1,7 +1,12 @@
 from fastapi import APIRouter
 
-router = APIRouter(prefix="/v1/service")
-
 from internal.controllers.serviceapi import user
 
-router.include_router(user.router)
+router = APIRouter(prefix="/v1/service")
+
+routers = [
+    user.router
+]
+
+for r in routers:
+    router.include_router(r)
