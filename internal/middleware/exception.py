@@ -13,10 +13,12 @@ class ExceptionHandlerMiddleware:
         if (scope_type := scope["type"]) == "websocket":
             await self.app(scope, receive, send)
             return
-        elif scope_type == "lifespan":
+
+        if scope_type == "lifespan":
             await self.app(scope, receive, send)
             return
-        elif scope_type == "http":
+
+        if scope_type == "http":
             try:
                 await self.app(scope, receive, send)
             except Exception as exc:
@@ -26,5 +28,6 @@ class ExceptionHandlerMiddleware:
                 else:
                     response = response_factory.resp_500()
                 await response(scope, receive, send)
-        else:
-            await self.app(scope, receive, send)
+            return
+
+        await self.app(scope, receive, send)
