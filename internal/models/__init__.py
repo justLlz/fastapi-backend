@@ -122,7 +122,7 @@ class ModelMixin(Base):
         data = {k: v for k, v in self.to_dict().items() if k not in excluded_columns}
         return self.create(**data)
 
-    def mixin_check_required_fields(self, fields: list[str]) -> (str, bool):
+    def mixin_check_required_fields(self, fields: list[str]) -> tuple[str, bool]:
         for field in fields:
             val = getattr(self, field)
             if not val:
@@ -188,3 +188,7 @@ class ModelMixin(Base):
                 f"{column_name} is not a real table column of {cls.__name__}"
             )
         return getattr(cls, column_name)
+
+    @classmethod
+    def get_creator_id_column(cls) -> InstrumentedAttribute:
+        return cls.get_column(cls.creator_id_column_name())

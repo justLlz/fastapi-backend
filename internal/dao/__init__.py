@@ -1,7 +1,6 @@
 """
 该目录主要用于数据库操作
 """
-from fastapi import HTTPException
 from sqlalchemy import Subquery
 from sqlalchemy.orm import InstrumentedAttribute
 
@@ -76,8 +75,11 @@ class BaseDao:
             querier = self.querier_inc_deleted.eq_(self._model_cls.id, primary_id)
         else:
             querier = self.querier.eq_(self._model_cls.id, primary_id)
+
         if creator_id and self._model_cls.has_creator_id_column():
-            querier = querier.where_by(**{self._model_cls.creator_id_column_name(): creator_id})
+            querier = self.querier.where(
+                self._model_cls.get_creator_id_column() == creator_id
+            )
 
         return await querier.get_or_none(include_deleted=include_deleted)
 
