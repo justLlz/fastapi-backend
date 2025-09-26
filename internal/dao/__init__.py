@@ -6,6 +6,7 @@ from sqlalchemy import Subquery
 from sqlalchemy.orm import InstrumentedAttribute
 
 from internal.models import ModelMixin
+from internal.utils.exception import AppException
 from internal.utils.mixin_type import MixinModelType
 from internal.utils.orm_helpers import (CountBuilder, QueryBuilder, UpdateBuilder, new_cls_querier,
                                         new_cls_updater,
@@ -90,7 +91,7 @@ class BaseDao:
         ins = await self.query_by_id_or_none(primary_id, creator_id=creator_id, include_deleted=include_deleted)
         if not ins:
             logger.error(f"{self._model_cls.__name__} not found for oid={primary_id}")
-            raise HTTPException(404, detail=f"{self._model_cls.__name__} not found")
+            raise AppException(code=404, detail=f"{self._model_cls.__name__} not found")
         return ins
 
     async def query_by_ids(self, ids: list[int]) -> list[MixinModelType]:

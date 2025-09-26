@@ -21,7 +21,7 @@ class ExceptionHandlerMiddleware:
             await self.app(scope, receive, send)
         except BaseException as exc:
             logger.error(f'''Exception occurred:\n{get_last_exec_tb(exc)}''')
-            if isinstance(exc, AppException | HTTPException):
+            if isinstance(exc, AppException):
                 response = response_factory.response(code=exc.status_code, msg=exc.detail)
             else:
                 response = response_factory.resp_500()

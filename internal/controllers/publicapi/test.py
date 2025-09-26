@@ -6,10 +6,11 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import numpy as np
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 
 from internal.models.user import User
 from internal.utils.asyncio_task import async_task_manager
+from internal.utils.exception import AppException
 from internal.utils.orm_helpers import new_cls_querier, new_cls_updater, new_counter
 from pkg.logger_helper import logger
 from pkg.resp_helper import response_factory
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/test", tags=["public v1 test"])
 async def test_raise_exception(_: Request):
     # 如果触发fastapi.HTTPException会有限被main.py的exception_handler捕获，
     # 如果是Exception会被middleware的exception.py捕获
-    raise Exception("test_raise_exception")
+    raise AppException(code=500, detail="test_raise_exception")
 
 
 @router.get("/test_custom_response_class_basic_types")
@@ -233,7 +234,7 @@ async def test_dao():
         logger.info(f"test update-2 success")
     except Exception as e:
         logger.error(f"test dao error: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise AppException(code=500, detail=str(e)) from e
     else:
         return response_factory.resp_200()
     finally:

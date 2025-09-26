@@ -2,6 +2,7 @@ from contextvars import ContextVar
 
 from fastapi import HTTPException, Request
 
+from internal.utils.exception import AppException
 from pkg.logger_helper import logger
 
 
@@ -62,6 +63,6 @@ def get_user_id_context_var() -> int:
         return -1
 
     if user_id == -1:
-        raise HTTPException(status_code=400, detail="user_id is unknown")
+        raise AppException(code=400, detail="user_id is unknown")
 
     return user_id

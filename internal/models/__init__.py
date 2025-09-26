@@ -1,7 +1,5 @@
 """该目录主要用于数据库模型"""
-from typing import Any
 
-from fastapi import HTTPException
 from sqlalchemy import BigInteger, Column, DateTime
 from sqlalchemy.orm import InstrumentedAttribute
 from starlette import status

@@ -3,12 +3,13 @@ import time
 import uuid
 from typing import Any
 
-from fastapi import HTTPException, status
+from fastapi import status
 from loguru import logger
 from orjson import JSONDecodeError
 
-from pkg import create_uuid_token, orjson_dumps, orjson_loads, token_cache_key, token_list_cache_key
 from internal.infra.db import get_redis
+from internal.utils.exception import AppException
+from pkg import create_uuid_token, orjson_dumps, orjson_loads, token_cache_key, token_list_cache_key
 
 
 class Cache:
@@ -46,7 +47,7 @@ class Cache:
                             f"token list for user {user_id} is full, popping and deleting oldest token: {old_token}")
         except Exception as e:
             logger.error(f"Failed to pop ande delete value from list {cache_key}: {repr(e)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            raise AppException(code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     # 设置键值对
     @classmethod
@@ -59,7 +60,7 @@ class Cache:
                 return await redis.set(key, value, ex=ex)
         except Exception as e:
             logger.error(f"Failed to set key {key}: {repr(e)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            raise AppException(code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     # 获取键值
     @classmethod
@@ -82,7 +83,7 @@ class Cache:
                     return value
         except Exception as e:
             logger.error(f"Failed to get key {key}: {repr(e)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            raise AppException(code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     # 删除键
     @classmethod
@@ -95,7 +96,7 @@ class Cache:
                 return await redis.delete(key)
         except Exception as e:
             logger.error(f"failed to delete key {key}: {repr(e)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            raise AppException(code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     # 设置过期时间
     @classmethod
@@ -108,7 +109,7 @@ class Cache:
                 return await redis.expire(key, ex)
         except Exception as e:
             logger.error(f"Failed to set expiry for key {key}: {repr(e)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            raise AppException(code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     # 检查键是否存在
     @classmethod
@@ -121,7 +122,7 @@ class Cache:
                 return await redis.exists(key) > 0
         except Exception as e:
             logger.error(f"Failed to check existence of key {key}: {repr(e)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            raise AppException(code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     # 获取键的剩余 TTL
     @classmethod
@@ -134,7 +135,7 @@ class Cache:
                 return await redis.ttl(key)
         except Exception as e:
             logger.error(f"Failed to get TTL for key {key}: {repr(e)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            raise AppException(code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     # 添加到哈希表
     @classmethod
@@ -147,7 +148,7 @@ class Cache:
                 return await redis.hset(name, key, value) > 0
         except Exception as e:
             logger.error(f"Failed to set hash {name}:{key}: {repr(e)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            raise AppException(code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     # 获取哈希表中的值
     @classmethod
@@ -161,7 +162,7 @@ class Cache:
                 return value.decode() if value else None
         except Exception as e:
             logger.error(f"Failed to get hash {name}:{key}: {repr(e)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            raise AppException(code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     # 向列表添加值
     @classmethod
@@ -177,7 +178,7 @@ class Cache:
                     return await redis.rpush(name, value)
         except Exception as e:
             logger.error(f"Failed to push value to list {name}: {repr(e)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            raise AppException(code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     # 获取列表中的所有值
     @classmethod
@@ -191,7 +192,7 @@ class Cache:
                 return values
         except Exception as e:
             logger.error(f"Failed to get list {name}: {repr(e)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            raise AppException(code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     @classmethod
     async def left_pop_list(cls, name: str) -> str | None:
@@ -204,7 +205,7 @@ class Cache:
                 return value.decode() if value else None
         except Exception as e:
             logger.error(f"Failed to pop value from list {name}: {repr(e)}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+            raise AppException(code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
     @classmethod
     async def login_and_set_token(cls, user_data: dict) -> str:
