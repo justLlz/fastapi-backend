@@ -35,7 +35,7 @@ class ExceptionHandlerMiddleware:
             try:
                 await self.app(scope, receive, send_wrapper)
             except Exception as exc:
-                logger.error(f"Exception occurred:\n{get_last_exec_tb(exc)}")
+                logger.error(f"Exception occurred:{get_last_exec_tb(exc)}")
 
                 if response_started:
                     if not response_ended:
