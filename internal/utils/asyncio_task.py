@@ -62,29 +62,25 @@ class AsyncTaskManagerAnyIO:
         return coro_func.__name__
 
     async def _run_task_inner(
-            self,
-            info: TaskInfo,
-            coro_func: Callable[..., Awaitable[Any]],
-            args_tuple: tuple,
-            kwargs_dict: dict,
-            timeout: float | None,
+            self, info: TaskInfo, coro_func, args_tuple, kwargs_dict, timeout
     ):
         coro_name = info.name
         task_id = info.task_id
-
         try:
-            async with self._limiter:
-                logger.info(f"Task {coro_name} {task_id} started.")
+            # 关键：让任务真正运行在它的取消域内
+            with info.scope:
+                async with self._limiter:
+                    logger.info(f"Task {coro_name} {task_id} started.")
 
-                if timeout and timeout > 0:
-                    with fail_after(timeout):
+                    if timeout and timeout > 0:
+                        with fail_after(timeout):
+                            result = await coro_func(*args_tuple, **kwargs_dict)
+                    else:
                         result = await coro_func(*args_tuple, **kwargs_dict)
-                else:
-                    result = await coro_func(*args_tuple, **kwargs_dict)
 
-                info.status = "completed"
-                info.result = result
-                logger.info(f"Task {coro_name} {task_id} completed.")
+                    info.status = "completed"
+                    info.result = result
+                    logger.info(f"Task {coro_name} {task_id} completed.")
 
         except TimeoutError as te:
             info.status = "timeout"
@@ -133,12 +129,14 @@ class AsyncTaskManagerAnyIO:
     async def cancel_task(self, task_id: str) -> bool:
         async with self._lock:
             info = self.tasks.get(task_id)
-            if info:
-                info.scope.cancel()
-                logger.info(f"Task {task_id} cancelled.")
-                return True
-            logger.warning(f"Task {task_id} not found.")
-            return False
+            if not info:
+                logger.warning(f"Task {task_id} not found.")
+                return False
+            info.scope.cancel()
+            info.status = "cancelling"
+            logger.info(f"Task {task_id} cancelling...")
+            self.tasks.pop(task_id, None)
+            return True
 
     async def get_task_status(self) -> dict[str, bool]:
         async with self._lock:
