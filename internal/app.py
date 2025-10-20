@@ -60,15 +60,7 @@ def register_middleware(app: FastAPI):
     from internal.middleware.auth import AuthMiddleware
     app.add_middleware(AuthMiddleware)
 
-    from internal.middleware.exception import ExceptionHandlerMiddleware
-    # 3. 异常处理中间件
-    app.add_middleware(ExceptionHandlerMiddleware)
-
-    # 2. 日志中间件：记录请求和响应的日志，监控 API 性能和请求流
-    from internal.middleware.recorder import RecorderMiddleware
-    app.add_middleware(RecorderMiddleware)
-
-    # 1. CORS 中间件：处理跨域请求
+    # 2. CORS 中间件：处理跨域请求
     if setting.BACKEND_CORS_ORIGINS:
         from starlette.middleware.cors import CORSMiddleware
         app.add_middleware(
@@ -78,6 +70,10 @@ def register_middleware(app: FastAPI):
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
+    # 1. 日志中间件：记录请求和响应的日志，监控 API 性能和请求流
+    from internal.middleware.recorder import RecorderMiddleware
+    app.add_middleware(RecorderMiddleware)
 
 
 # 定义 lifespan 事件处理器
