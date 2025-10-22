@@ -2,23 +2,27 @@
 迁移
 uv add -r requirements.txt
 
-显示所有可安装/已安装版本 
+显示所有可安装
 uv python list
  
 显示已经安装的版本
 uv python find
  
 初始化环境
+uv venv <环境名> --python <解释器路径或者版本>
 uv venv .venv --python 3.12.9
 
-安装所有包
-uv sync --locked
+安装所有包(初始化环境)
+uv sync --locked --active
 
-添加新依赖
+添加新依赖(会自动执行uv lock && uv sync)
 uv add <包名>
 
-同步新依赖
+
+同步新依赖(团队中其他成员修改了依赖，相当于go mod tidy)
 uv lock && uv sync
+uv lock == pip freeze > requirements.txt
+uv sync == pip install -r requirements.txt
 
 所有的依赖
 uv pip list
