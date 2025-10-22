@@ -197,13 +197,14 @@ class AnyioTaskManager:
         return results
 
     async def run_in_thread(
-        self,
-        func: Callable[..., Any],
-        /,
-        *args: Any,
-        kwargs: dict | None = None,
-        timeout: float | None = None,
-        cancellable: bool = False,
+            self,
+            task_id: str | int,
+            coro_func: Callable[..., Any],
+            *,
+            args_tuple: tuple,
+            kwargs: dict | None = None,
+            timeout: float | None = None,
+            cancellable: bool = False,
     ) -> Any:
         """
         用 AnyIO 线程池执行同步函数（不会阻塞事件循环）。
@@ -211,7 +212,8 @@ class AnyioTaskManager:
         - timeout：超时时间（秒），超时抛 anyio.TimeoutError
         - cancellable：是否允许取消在等待线程结果时生效（默认为 False）
         """
-        bound = partial(func, *args, **(kwargs or {}))
+        logger.info(f"Task {task_id} started in a thread.")
+        bound = partial(coro_func, *args_tuple, **(kwargs or {}))
         async with self._limiter:
             if timeout and timeout > 0:
                 with fail_after(timeout):
@@ -219,12 +221,13 @@ class AnyioTaskManager:
             return await anyio.to_thread.run_sync(bound, cancellable=cancellable)
 
     async def run_in_process(
-        self,
-        func: Callable[..., Any],
-        /,
-        *args: Any,
-        kwargs: dict | None = None,
-        timeout: float | None = None,
+            self,
+            task_id: str | int,
+            coro_func: Callable[..., Any],
+            *,
+            args_tuple: tuple,
+            kwargs: dict | None = None,
+            timeout: float | None = None,
     ) -> Any:
         """
         用 AnyIO 进程池执行同步函数（CPU 密集/需隔离 GIL 的场景）。
@@ -232,12 +235,14 @@ class AnyioTaskManager:
         - Windows/macOS 默认 spawn，闭包/lambda/本地函数会失败
         - 取消语义：只能在等待结果时取消；真正的子进程中断取决于平台与 anyio 实现
         """
-        bound = partial(func, *args, **(kwargs or {}))
+        logger.info(f"Task {task_id} started in process.")
+        bound = partial(coro_func, *args_tuple, **(kwargs or {}))
         async with self._limiter:
             if timeout and timeout > 0:
                 with fail_after(timeout):
                     return await anyio.to_process.run_sync(bound)
             return await anyio.to_process.run_sync(bound)
+
 
 # 全局实例（注意：需在 FastAPI 启动时 start，在关闭时 shutdown）
 anyio_task_manager = AnyioTaskManager(max_tasks=100)
