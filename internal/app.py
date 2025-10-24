@@ -6,6 +6,7 @@ from fastapi.exceptions import RequestValidationError
 
 from internal.config.setting import setting
 from pkg import SYS_ENV
+from pkg.aps_task_manager import apscheduler_manager
 from pkg.logger_helper import logger
 from pkg.resp_helper import response_factory
 
@@ -72,8 +73,8 @@ def register_middleware(app: FastAPI):
         )
 
     # 1. 日志中间件：记录请求和响应的日志，监控 API 性能和请求流
-    from internal.middleware.recorder import RecorderMiddleware
-    app.add_middleware(RecorderMiddleware)
+    from internal.middleware.recorder import RecordMiddleware
+    app.add_middleware(RecordMiddleware)
 
 
 # 定义 lifespan 事件处理器
@@ -85,7 +86,9 @@ async def lifespan(_app: FastAPI):
         raise Exception(f"Invalid ENV: {SYS_ENV}")
 
     logger.info("Check completed, Application will start.")
+    apscheduler_manager.start()
     # 进入应用生命周期
     yield
+    apscheduler_manager.shutdown()
     # 关闭时的清理逻辑
     logger.warning("Application is about to close.")
