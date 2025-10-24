@@ -1,4 +1,3 @@
-import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from functools import partial
@@ -210,7 +209,7 @@ class AnyioTaskManager:
 
     async def run_in_thread(
             self,
-            coro_func: Callable[..., Any],
+            sync_func: Callable[..., Any],
             *,
             task_id: str | int = None,
             args_tuple: tuple | None = None,
@@ -224,9 +223,9 @@ class AnyioTaskManager:
         - timeout：超时时间（秒），超时抛 anyio.TimeoutError
         - cancellable：是否允许取消在等待线程结果时生效（默认为 False）
         """
-        task_id = task_id or uuid.uuid4().hex
-        logger.info(f"Task {task_id} started in a thread.")
-        bound = partial(coro_func, *(args_tuple or ()), **(kwargs_dict or {}))
+        func_name = self.get_coro_func_name(sync_func)
+        logger.info(f"Task {func_name} started in a thread.")
+        bound = partial(sync_func, *(args_tuple or ()), **(kwargs_dict or {}))
         async with self._limiter:
             if timeout and timeout > 0:
                 with fail_after(timeout):
@@ -235,9 +234,8 @@ class AnyioTaskManager:
 
     async def run_in_process(
             self,
-            coro_func: Callable[..., Any],
+            sync_func: Callable[..., Any],
             *,
-            task_id: str | int = None,
             args_tuple: tuple | None = None,
             kwargs_dict: dict | None = None,
             timeout: float | None = None,
@@ -248,14 +246,139 @@ class AnyioTaskManager:
         - Windows/macOS 默认 spawn，闭包/lambda/本地函数会失败
         - 取消语义：只能在等待结果时取消；真正的子进程中断取决于平台与 anyio 实现
         """
-        task_id = task_id or uuid.uuid4().hex
-        logger.info(f"Task {task_id} started in process.")
-        bound = partial(coro_func, *(args_tuple or ()), **(kwargs_dict or {}))
+        func_name = self.get_coro_func_name(sync_func)
+        logger.info(f"Task {func_name} started in process.")
+        bound = partial(sync_func, *(args_tuple or ()), **(kwargs_dict or {}))
         async with self._limiter:
             if timeout and timeout > 0:
                 with fail_after(timeout):
                     return await anyio.to_process.run_sync(bound)
             return await anyio.to_process.run_sync(bound)
+
+    async def run_in_threads(
+            self,
+            sync_func: Callable[..., Any],
+            *,
+            args_tuple_list: list[tuple] | None = None,
+            kwargs_dict_list: list[dict] | None = None,
+            timeout: float | None = None,
+            cancellable: bool = False,
+    ) -> list[Any]:
+        """
+        使用 AnyIO 线程池并发执行一批 *同步* 函数调用（不会阻塞事件循环）。
+
+        Args:
+            sync_func: 同步函数（I/O 密集或会释放 GIL 的计算可用）
+            args_tuple_list: 参数元组列表，对应每个任务的位置参数
+            kwargs_dict_list: 关键字参数的字典列表（可为 None；若提供，长度应与 args_tuple_list 相同）
+            timeout: 单个任务的超时（秒）；超时则该任务返回 None，并记录日志
+            cancellable: 等待线程结果时是否可取消（传给 anyio.to_thread.run_sync）
+
+        Returns:
+            list[Any]: 与输入顺序一一对应的结果列表；失败/超时为 None
+        """
+        args_tuple_list, kwargs_dict_list = self._check_rebuild_args_kwargs(args_tuple_list, kwargs_dict_list)
+
+        results: list[Any] = [None] * len(args_tuple_list)
+        func_name = self.get_coro_func_name(sync_func)
+
+        async def _one(index: int, args_tuple: tuple, kwargs_dict: dict | None):
+            bound = partial(sync_func, *(args_tuple or ()), **(kwargs_dict or {}))
+            async with self._limiter:
+                try:
+                    logger.info(f"ThreadTask-{index} ({func_name}, args={args_tuple}, kwargs={kwargs_dict}) started.")
+                    if timeout and timeout > 0:
+                        with fail_after(timeout):
+                            res = await anyio.to_thread.run_sync(bound, cancellable=cancellable)
+                    else:
+                        res = await anyio.to_thread.run_sync(bound, cancellable=cancellable)
+                    results[index] = res
+                    logger.info(f"ThreadTask-{index} ({func_name}) completed.")
+                except TimeoutError:
+                    results[index] = None
+                    logger.error(f"ThreadTask-{index} ({func_name}) timed out after {timeout} seconds.")
+                except BaseException as e:
+                    # 取消语义：仅在等待结果时能被取消；底层线程不会被强杀
+                    if isinstance(e, anyio.get_cancelled_exc_class()):
+                        logger.info(f"ThreadTask-{index} ({func_name}) cancelled while awaiting result.")
+                    else:
+                        logger.error(f"ThreadTask-{index} ({func_name}) failed. err={e}")
+                    results[index] = None
+
+        async with create_task_group() as tg:
+            for i, (args, kwargs) in enumerate(zip(args_tuple_list, kwargs_dict_list, strict=False)):
+                tg.start_soon(_one, i, args, kwargs)
+
+        return results
+
+    async def run_in_processes(
+            self,
+            sync_func: Callable[..., Any],
+            args_tuple_list: list[tuple] | None = None,
+            kwargs_dict_list: list[dict] | None = None,
+            *,
+            timeout: float | None = None,
+    ) -> list[Any]:
+        """
+        使用 AnyIO 进程池并发执行一批 *同步* 函数调用（适合 CPU 密集或需绕开 GIL 的场景）。
+
+        注意：
+        - func 必须是顶层可 picklable 的函数；args/kwargs 也需可序列化
+        - Windows / macOS 默认 spawn，闭包、lambda、本地函数会失败
+        - 取消语义：只能在等待结果阶段取消；子进程不会被“强杀”，需在 func 内部自管超时/分段返回
+
+        Args:
+            sync_func: 同步函数（顶层可 picklable）
+            args_tuple_list: 每个任务的位置参数元组列表
+            kwargs_dict_list: 对应的 kwargs 字典列表（可为 None；若提供需与 args_tuple_list 等长）
+            timeout: 单个任务的超时时间（秒）；超时该任务返回 None 并记录日志
+
+        Returns:
+            list[Any]: 与输入顺序对应的结果列表；失败/超时为 None
+        """
+        args_tuple_list, kwargs_dict_list = self._check_rebuild_args_kwargs(args_tuple_list, kwargs_dict_list)
+
+        results: list[Any] = [None] * len(args_tuple_list)
+        func_name = self.get_coro_func_name(sync_func)
+
+        async def _one(index: int, args_tuple: tuple, kwargs_dict: dict | None):
+            # 注意：partial 会被序列化到子进程执行
+            bound = partial(sync_func, *(args_tuple or ()), **(kwargs_dict or {}))
+            async with self._limiter:
+                try:
+                    logger.info(f"ProcessTask-{index} ({func_name}, args={args_tuple}, kwargs={kwargs_dict}) started.")
+                    if timeout and timeout > 0:
+                        with fail_after(timeout):
+                            res = await anyio.to_process.run_sync(bound)
+                    else:
+                        res = await anyio.to_process.run_sync(bound)
+                    results[index] = res
+                    logger.info(f"ProcessTask-{index} ({func_name}) completed.")
+                except TimeoutError:
+                    results[index] = None
+                    logger.error(f"ProcessTask-{index} ({func_name}) timed out after {timeout} seconds.")
+                except BaseException as e:
+                    # 等待结果阶段的取消会在这里表现为 CancelledError
+                    if isinstance(e, anyio.get_cancelled_exc_class()):
+                        logger.info(f"ProcessTask-{index} ({func_name}) cancelled while awaiting result.")
+                    else:
+                        logger.error(f"ProcessTask-{index} ({func_name}) failed. err={e}")
+                    results[index] = None
+
+        async with create_task_group() as tg:
+            for i, (args, kwargs) in enumerate(zip(args_tuple_list, kwargs_dict_list, strict=False)):
+                tg.start_soon(_one, i, args, kwargs)
+
+        return results
+
+    @staticmethod
+    def _check_rebuild_args_kwargs(args_tuple_list: list[tuple], kwargs_dict_list: list[dict] | None):
+        args_tuple_list = args_tuple_list or []
+        kwargs_dict_list = kwargs_dict_list or [None] * len(args_tuple_list)
+
+        if len(kwargs_dict_list) != len(args_tuple_list):
+            raise ValueError("args_tuple_list must be the same length as kwargs_dict_list.")
+        return args_tuple_list, kwargs_dict_list
 
 
 # 全局实例（注意：需在 FastAPI 启动时 start，在关闭时 shutdown）
