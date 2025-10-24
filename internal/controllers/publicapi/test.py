@@ -9,9 +9,9 @@ import numpy as np
 from fastapi import APIRouter, Request
 
 from internal.models.user import User
-from internal.utils.asyncio_task import async_task_manager
 from internal.utils.exception import AppException
 from internal.utils.orm_helpers import new_cls_querier, new_cls_updater, new_counter
+from pkg.anyio_task_manager import anyio_task_manager
 from pkg.logger_helper import logger
 from pkg.resp_helper import response_factory
 
@@ -107,7 +107,7 @@ async def async_task():
 
 @router.get("/test_contextvars_on_asyncio_task")
 async def test_contextvars_on_asyncio_task():
-    await  async_task_manager.add_task("test", async_task)
+    await  anyio_task_manager.add_task("test", async_task)
     return response_factory.resp_200()
 
 
