@@ -1,3 +1,4 @@
+import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from functools import partial
@@ -58,6 +59,17 @@ class AnyioTaskManager:
     def get_coro_func_name(coro_func: Callable[..., Awaitable[Any]]) -> str:
         if getattr(coro_func, "__name__", None) == "<lambda>":
             raise ValueError("Lambda functions are not supported for task tracking!")
+
+        # 处理 partial 对象
+        if isinstance(coro_func, partial):
+            func = coro_func.func
+            if hasattr(func, "__self__"):
+                return f"{func.__self__.__class__.__name__}.{func.__name__}"
+            elif hasattr(func, "__name__"):
+                return func.__name__
+            else:
+                return "partial"
+
         if hasattr(coro_func, "__self__"):
             return f"{coro_func.__self__.__class__.__name__}.{coro_func.__name__}"
         return coro_func.__name__
@@ -198,13 +210,13 @@ class AnyioTaskManager:
 
     async def run_in_thread(
             self,
-            task_id: str | int,
             coro_func: Callable[..., Any],
             *,
-            args_tuple: tuple,
-            kwargs: dict | None = None,
+            task_id: str | int = None,
+            args_tuple: tuple | None = None,
+            kwargs_dict: dict | None = None,
             timeout: float | None = None,
-            cancellable: bool = False,
+            cancellable: bool = False
     ) -> Any:
         """
         用 AnyIO 线程池执行同步函数（不会阻塞事件循环）。
@@ -212,8 +224,9 @@ class AnyioTaskManager:
         - timeout：超时时间（秒），超时抛 anyio.TimeoutError
         - cancellable：是否允许取消在等待线程结果时生效（默认为 False）
         """
+        task_id = task_id or uuid.uuid4().hex
         logger.info(f"Task {task_id} started in a thread.")
-        bound = partial(coro_func, *args_tuple, **(kwargs or {}))
+        bound = partial(coro_func, *(args_tuple or ()), **(kwargs_dict or {}))
         async with self._limiter:
             if timeout and timeout > 0:
                 with fail_after(timeout):
@@ -222,11 +235,11 @@ class AnyioTaskManager:
 
     async def run_in_process(
             self,
-            task_id: str | int,
             coro_func: Callable[..., Any],
             *,
-            args_tuple: tuple,
-            kwargs: dict | None = None,
+            task_id: str | int = None,
+            args_tuple: tuple | None = None,
+            kwargs_dict: dict | None = None,
             timeout: float | None = None,
     ) -> Any:
         """
@@ -235,8 +248,9 @@ class AnyioTaskManager:
         - Windows/macOS 默认 spawn，闭包/lambda/本地函数会失败
         - 取消语义：只能在等待结果时取消；真正的子进程中断取决于平台与 anyio 实现
         """
+        task_id = task_id or uuid.uuid4().hex
         logger.info(f"Task {task_id} started in process.")
-        bound = partial(coro_func, *args_tuple, **(kwargs or {}))
+        bound = partial(coro_func, *(args_tuple or ()), **(kwargs_dict or {}))
         async with self._limiter:
             if timeout and timeout > 0:
                 with fail_after(timeout):
