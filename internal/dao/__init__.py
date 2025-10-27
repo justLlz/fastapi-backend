@@ -11,7 +11,7 @@ from internal.utils.orm_helpers import (CountBuilder, QueryBuilder, UpdateBuilde
                                         new_cls_updater,
                                         new_col_counter, new_counter,
                                         new_ins_updater, new_sub_querier)
-from pkg.logger_helper import logger
+from pkg.logger_tool import logger
 
 
 class BaseDao:

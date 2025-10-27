@@ -6,7 +6,7 @@ from celery import Celery, chain, chord, group, signals, states
 from celery.result import AsyncResult, GroupResult
 from kombu.utils.uuid import uuid
 
-from pkg.logger_helper import logger
+from pkg.logger_tool import logger
 
 
 class CeleryClient:

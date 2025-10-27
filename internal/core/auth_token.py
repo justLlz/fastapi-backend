@@ -1,6 +1,6 @@
 from internal.utils.cache_helpers import Cache
 from pkg import token_list_cache_key
-from pkg.logger_helper import logger
+from pkg.logger_tool import logger
 
 
 async def verify_token(token: str) -> tuple[dict | None, bool]:

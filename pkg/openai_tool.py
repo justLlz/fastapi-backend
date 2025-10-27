@@ -8,7 +8,7 @@ from openai.types.chat import ChatCompletion, ChatCompletionAssistantMessagePara
     ChatCompletionSystemMessageParam, \
     ChatCompletionToolMessageParam, ChatCompletionUserMessageParam
 
-from pkg.logger_helper import logger
+from pkg.logger_tool import logger
 
 
 class ChatCompletionRes(NamedTuple):

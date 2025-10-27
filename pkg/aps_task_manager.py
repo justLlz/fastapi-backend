@@ -4,7 +4,7 @@ from typing import Any
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from pkg.logger_helper import logger
+from pkg.logger_tool import logger
 
 
 class ApsSchedulerTool:

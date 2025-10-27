@@ -5,7 +5,7 @@ import os
 from celery import signals
 
 from internal.infra.celery_db import close_async_celery_db, init_async_celery_db
-from pkg.logger_helper import logger
+from pkg.logger_tool import logger
 
 
 @signals.worker_process_init.connect

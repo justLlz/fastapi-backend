@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request
 
-from pkg.resp_helper import response_factory
+from pkg.resp_tool import response_factory
 
 router = APIRouter(prefix="/user", tags=["internal v1 user"])
 

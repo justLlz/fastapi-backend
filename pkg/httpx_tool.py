@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from pkg.logger_helper import logger
+from pkg.logger_tool import logger
 
 
 class HTTPxResult:

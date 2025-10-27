@@ -6,8 +6,8 @@ from sqlalchemy.orm import InstrumentedAttribute
 from internal.infra.db import Base, get_session
 from internal.utils.context import get_user_id_context_var
 from pkg import get_utc_without_tzinfo
-from pkg.logger_helper import logger
-from pkg.snowflake_helper import generate_snowflake_id
+from pkg.logger_tool import logger
+from pkg.snowflake_tool import generate_snowflake_id
 
 
 class ModelMixin(Base):

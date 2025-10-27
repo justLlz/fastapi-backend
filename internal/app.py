@@ -1,14 +1,17 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 
 from internal.config.setting import setting
-from pkg import SYS_ENV
+from internal.constant import REDIS_KEY_LOCK_PREFIX
+from internal.utils.cache_helpers import cache
+from pkg import SYS_ENV, SYS_NAMESPACE
 from pkg.aps_task_manager import apscheduler_manager
-from pkg.logger_helper import logger
-from pkg.resp_helper import response_factory
+from pkg.logger_tool import logger
+from pkg.resp_tool import response_factory
 
 
 def create_app() -> FastAPI:
@@ -85,10 +88,35 @@ async def lifespan(_app: FastAPI):
     if SYS_ENV not in ["local", "dev", "test", "prod"]:
         raise Exception(f"Invalid ENV: {SYS_ENV}")
 
+    cur_pid = os.getpid()
+    logger.info(f"Current PID: {cur_pid}")
+
+    is_scheduler_master = False
+    if SYS_NAMESPACE in ["dev", "test", "canary", "prod"]:
+        scheduler_lock_key = f"{REDIS_KEY_LOCK_PREFIX}:scheduler:master"
+        # 只有一个 worker 能获得锁，成为 scheduler master
+        lock_id = await cache.acquire_lock(
+            scheduler_lock_key,
+            expire_ms=180000,  # 3 分钟, 避免锁死
+            timeout_ms=1000,  # 最多等 1 秒获取锁
+            retry_interval_ms=200  # 可略调
+        )
+        if lock_id:
+            logger.info(f"Current process {cur_pid} acquired scheduler master lock, starting APScheduler")
+            is_scheduler_master = True
+            apscheduler_manager.start()()
+        else:
+            logger.info(f"Current process {cur_pid} did not acquire scheduler master lock, skipping scheduler")
+    else:
+        # dump_routes_and_middleware(app)
+        ...
+
     logger.info("Check completed, Application will start.")
-    apscheduler_manager.start()
+
     # 进入应用生命周期
     yield
-    apscheduler_manager.shutdown()
+    if is_scheduler_master:
+        logger.info("Shutting down APScheduler")
+        apscheduler_manager.shutdown()
     # 关闭时的清理逻辑
     logger.warning("Application is about to close.")

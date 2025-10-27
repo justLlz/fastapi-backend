@@ -3,7 +3,7 @@ from pathlib import Path
 
 from internal.config import BaseConfig, DevelopmentConfig, LocalConfig, ProductionConfig, TestingConfig
 from pkg import BASE_DIR, SYS_ENV, SYS_NAMESPACE
-from pkg.logger_helper import logger
+from pkg.logger_tool import logger
 
 
 @lru_cache

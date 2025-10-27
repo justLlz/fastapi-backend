@@ -8,7 +8,7 @@ import anyio
 from anyio import CancelScope, CapacityLimiter, create_task_group, fail_after, to_process, to_thread
 from anyio.abc import TaskGroup
 
-from pkg.logger_helper import logger
+from pkg.logger_tool import logger
 
 CPU = max(1, multiprocessing.cpu_count())
 GLOBAL_MAX_DEFAULT = min(max(32, 4 * CPU), 256)
