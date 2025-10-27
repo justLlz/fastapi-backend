@@ -3,9 +3,10 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (Column, ColumnExpressionArgument, Delete, Function, Select, Subquery, Update,
-                        delete, distinct, func, or_, select, update)
+                        delete, distinct, func, or_,
+                        select, update)
 from sqlalchemy.orm import InstrumentedAttribute, aliased
-from sqlalchemy.sql.elements import ClauseElement, ColumnElement
+from sqlalchemy.sql.elements import BinaryExpression, ClauseElement
 
 from internal.infra.db import get_session
 from internal.models import ModelMixin
@@ -71,6 +72,13 @@ class BaseBuilder:
 
         return self.where(column.in_(values))
 
+    def not_in_(self, column: InstrumentedAttribute, values: list | tuple) -> "BaseBuilder":
+        """不包含于列表条件"""
+        if len(values) == 1:
+            return self.where(column != values[0])
+
+        return self.where(column.notin_(values))
+
     def like(self, column: InstrumentedAttribute, pattern: str) -> "BaseBuilder":
         """模糊匹配条件"""
         return self.where(column.like(f"%{pattern}%"))
@@ -83,6 +91,10 @@ class BaseBuilder:
         """为空检查条件"""
         return self.where(column.is_(None))
 
+    def is_not_null(self, column: InstrumentedAttribute) -> "BaseBuilder":
+        """不为空检查条件"""
+        return self.where(column.isnot(None))
+
     def between_(self, column: InstrumentedAttribute, start_value: Any, end_value: Any) -> "BaseBuilder":
         """范围查询条件"""
         return self.where(column.between(start_value, end_value))
@@ -90,7 +102,7 @@ class BaseBuilder:
     def contains_(self, column: InstrumentedAttribute, values: list) -> "BaseBuilder":
         return self.where(column.contains(values))
 
-    def or_(self, *conditions: ColumnElement[bool]) -> "BaseBuilder":
+    def or_(self, *conditions: BinaryExpression) -> "BaseBuilder":
         """
         添加 OR 条件组合
         示例:
@@ -169,12 +181,6 @@ class BaseBuilder:
             return self
 
         self._stmt = self._stmt.where(*conditions)
-        return self
-
-    def where_by(self, **kwargs):
-        for key, value in kwargs.items():
-            if column := self._model_cls.get_column_or_none(key):
-                self._stmt = self._stmt.where(column == value)
         return self
 
 
@@ -500,7 +506,7 @@ class DeleteBuilder(BaseBuilder):
                 raise Exception(f"{self._model_cls.__name__} delete error: {traceback.format_exc()}") from e
 
 
-def _validate_model_cls(model_cls: type | None, expected_type: type = type, subclass_of: type = ModelMixin):
+def _validate_model_cls(model_cls: type, expected_type: type = type, subclass_of: type = ModelMixin):
     """校验 model_cls 是否为指定的类型且是指定类的子类"""
     if model_cls is None:
         raise Exception("model_cls cannot be None")
