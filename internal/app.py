@@ -104,7 +104,7 @@ async def lifespan(_app: FastAPI):
         if lock_id:
             logger.info(f"Current process {cur_pid} acquired scheduler master lock, starting APScheduler")
             is_scheduler_master = True
-            apscheduler_manager.start()()
+            apscheduler_manager.start()
         else:
             logger.info(f"Current process {cur_pid} did not acquire scheduler master lock, skipping scheduler")
     else:

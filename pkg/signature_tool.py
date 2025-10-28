@@ -100,6 +100,4 @@ class SignatureAuthHelper:
         return True
 
 
-# import os
-# hmac_signer = HMACSigner(os.getenv("HMAC_SECRET_KEY"))
 signature_auth_helper = SignatureAuthHelper("hqsk-ai-platform-xafcv01")

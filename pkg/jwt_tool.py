@@ -3,10 +3,8 @@ from datetime import timedelta, timezone, datetime
 import jwt
 from loguru import logger
 
-from internal.config.setting import setting
 
-
-async def verify_jwt_token(token: str) -> tuple[int | None, bool]:
+async def verify_jwt_token(token: str, secret: str, algorithm: str) -> tuple[int | None, bool]:
     """
     验证 Token = request.headers.get("Authorization")
     """
@@ -15,7 +13,7 @@ async def verify_jwt_token(token: str) -> tuple[int | None, bool]:
 
     token = token.split(" ")[1]
     try:
-        payload = jwt.decode(token, setting.SECRET_KEY, algorithms=[setting.JWT_ALGORITHM])
+        payload = jwt.decode(token, secret, algorithms=[algorithm])
         user_id = payload.get("user_id")
         if user_id is None:
             logger.warning("Token verification failed: user_id not found")
@@ -30,11 +28,11 @@ async def verify_jwt_token(token: str) -> tuple[int | None, bool]:
     return user_id, True
 
 
-def create_jwt_token(user_id: int, username: str):
-    expiration = datetime.now(timezone.utc) + timedelta(minutes=setting.ACCESS_TOKEN_EXPIRE_MINUTES)
+def create_jwt_token(user_id: int, username: str, secret: str, expire_minutes: int, algorithm: str):
+    expiration = datetime.now(timezone.utc) + timedelta(minutes=expire_minutes)
     payload = {
         "username": username,
         "user_id": user_id,
         "exp": int(expiration.timestamp())  # Token 有效期 30 分钟
     }
-    return jwt.encode(payload, setting.SECRET_KEY, algorithm=setting.JWT_ALGORITHM)
+    return jwt.encode(payload, secret, algorithm=algorithm)
