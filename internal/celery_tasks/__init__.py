@@ -36,13 +36,13 @@ default_celery_client = CeleryClient(
     backend_url=setting.redis_url,
     task_default_queue=default_queue,
     include=[
-        "internal.celery_tasks.bootstrap_db",
-        "internal.celery_tasks.test_task",
-        "internal.celery_tasks.model_evaluation"
+        # "internal.celery_tasks.bootstrap_db",
+        # "internal.celery_tasks.test_task",
+        # "internal.celery_tasks.model_evaluation"
     ],
     task_routes={
-        "internal.celery_tasks.test_task.*": {"queue": default_queue},
-        "internal.celery_tasks.model_evaluation.*": {"queue": default_queue},
+        # "internal.celery_tasks.test_task.*": {"queue": default_queue},
+        # "internal.celery_tasks.model_evaluation.*": {"queue": default_queue},
     }
 )
 
