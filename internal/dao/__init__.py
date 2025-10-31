@@ -7,15 +7,21 @@ from sqlalchemy.orm import InstrumentedAttribute
 from internal.models import ModelMixin
 from internal.utils.exception import AppException
 from internal.utils.mixin_type import MixinModelType
-from internal.utils.orm_helpers import (CountBuilder, QueryBuilder, UpdateBuilder, new_cls_querier,
-                                        new_cls_updater,
-                                        new_col_counter, new_counter,
-                                        new_ins_updater, new_sub_querier)
 from pkg.logger_tool import logger
+from pkg.orm_tool import (CountBuilder, QueryBuilder, SessionProvider, UpdateBuilder, new_cls_querier,
+                          new_cls_updater,
+                          new_col_counter, new_counter,
+                          new_ins_updater, new_sub_querier)
 
 
 class BaseDao:
     _model_cls: type[ModelMixin] = None
+
+    def __init__(self, *, session_provider: SessionProvider):
+        if session_provider is None:
+            raise ValueError("session_provider is required")
+
+        self._session_provider = session_provider
 
     @property
     def model_cls(self) -> type[ModelMixin]:
@@ -26,43 +32,50 @@ class BaseDao:
 
     @property
     def querier(self) -> QueryBuilder:
-        return new_cls_querier(self._model_cls, include_deleted=False).desc_(self._model_cls.updated_at)
+        return new_cls_querier(
+            self._model_cls, session_provider=self._session_provider, include_deleted=False
+        ).desc_(self._model_cls.updated_at)
 
     @property
     def querier_inc_deleted(self) -> QueryBuilder:
-        return new_cls_querier(self._model_cls, include_deleted=True).desc_(self._model_cls.updated_at)
+        return new_cls_querier(
+            self._model_cls, session_provider=self._session_provider, include_deleted=True
+        ).desc_(self._model_cls.updated_at)
 
     @property
     def querier_unsorted(self) -> QueryBuilder:
-        return new_cls_querier(self._model_cls, include_deleted=False)
+        return new_cls_querier(self._model_cls, session_provider=self._session_provider, include_deleted=False)
 
     @staticmethod
     def querier_inc_deleted_unsorted(self) -> QueryBuilder:
-        return new_cls_querier(self._model_cls, include_deleted=True)
+        return new_cls_querier(self._model_cls, session_provider=self._session_provider, include_deleted=True)
 
     def sub_querier(self, subquery: Subquery) -> QueryBuilder:
-        return new_sub_querier(self._model_cls, subquery=subquery)
+        return new_sub_querier(self._model_cls, session_provider=self._session_provider, subquery=subquery)
 
     @property
     def counter(self) -> CountBuilder:
-        return new_counter(self._model_cls, include_deleted=False)
+        return new_counter(self._model_cls, session_provider=self._session_provider, include_deleted=False)
 
     @property
     def counter_inc_deleted(self) -> CountBuilder:
-        return new_counter(self._model_cls, include_deleted=True)
+        return new_counter(self._model_cls, session_provider=self._session_provider, include_deleted=True)
 
     def col_counter(self, count_column: InstrumentedAttribute, *, is_distinct: bool = False) -> CountBuilder:
         return new_col_counter(
-            self._model_cls, count_column=count_column, is_distinct=is_distinct, include_deleted=False
+            self._model_cls,
+            count_column=count_column,
+            is_distinct=is_distinct,
+            session_provider=self._session_provider,
+            include_deleted=False
         )
 
     @property
     def updater(self) -> UpdateBuilder:
-        return new_cls_updater(self._model_cls)
+        return new_cls_updater(self._model_cls, session_provider=self._session_provider)
 
-    @staticmethod
-    def ins_updater(ins: ModelMixin) -> UpdateBuilder:
-        return new_ins_updater(ins)
+    def ins_updater(self, ins: ModelMixin) -> UpdateBuilder:
+        return new_ins_updater(ins, session_provider=self._session_provider)
 
     async def query_by_id_or_none(
             self,

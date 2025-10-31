@@ -108,6 +108,21 @@ def extract_dict(d, keys):
     return {k: v for k, v in d.items() if k in keys}
 
 
+def unique_list(values: list | tuple, exclude_none=True) -> list:
+    seen = {}
+    for value in values:
+        if value is None and exclude_none:
+            continue
+
+        if value in seen:
+            continue
+
+        seen[value] = None
+
+    unique_values = list(seen.keys())
+    return unique_values
+
+
 def ensure_list(v) -> list:
     if v is None:
         return []

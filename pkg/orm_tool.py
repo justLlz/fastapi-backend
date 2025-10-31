@@ -1,28 +1,40 @@
 import traceback
+from collections.abc import AsyncGenerator
 from datetime import datetime
-from typing import Any
+from typing import Any, Protocol
 
 from sqlalchemy import (Column, ColumnExpressionArgument, Delete, Function, Select, Subquery, Update,
                         delete, distinct, func, or_,
                         select, update)
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute, aliased
-from sqlalchemy.sql.elements import BinaryExpression, ClauseElement, ColumnElement
+from sqlalchemy.sql.elements import ClauseElement, ColumnElement
 
 from internal.infra.db import get_session
 from internal.models import ModelMixin
 from internal.utils.context import get_user_id_context_var
-from internal.utils.exception import AppException
 from internal.utils.mixin_type import MixinModelType
-from pkg import get_utc_without_tzinfo
+from pkg import get_utc_without_tzinfo, unique_list
 from pkg.logger_tool import logger
+
+
+class SessionProvider(Protocol):
+    # 关键字仅参数；返回 AsyncContextManager[AsyncSession]
+    def __call__(self, *, autoflush: bool = True) -> AsyncGenerator[AsyncSession, Any]:
+        ...
 
 
 class BaseBuilder:
     """SQL查询构建器基类，提供模型类和方法的基本结构"""
 
-    __slots__ = ('_model_cls', '_stmt')  # 优化内存使用
+    __slots__ = ("_model_cls", "_stmt", "_session_provider")  # 优化内存使用
 
-    def __init__(self, model_cls: type[MixinModelType]) -> None:
+    def __init__(
+            self,
+            model_cls: type[MixinModelType],
+            *,
+            session_provider: SessionProvider = get_session,
+    ):
         """
         初始化查询构建器
 
@@ -33,12 +45,11 @@ class BaseBuilder:
             TypeError: 如果 model_class 不是有效的模型类
         """
         if not isinstance(model_cls, type) or not issubclass(model_cls, ModelMixin):
-            raise AppException(
-                500, f"model_class must be a subclass of ModelMixin, and actually gets: {type(model_cls)}",
-            )
+            raise Exception(f"model_class must be a subclass of ModelMixin, and actually gets: {type(model_cls)}")
 
         self._model_cls: type[MixinModelType] = model_cls
         self._stmt: Select | Delete | Update | None = None
+        self._session_provider = session_provider
 
     # 单独的操作符方法
     def eq_(self, column: InstrumentedAttribute, value: Any) -> "BaseBuilder":
@@ -67,17 +78,27 @@ class BaseBuilder:
 
     def in_(self, column: InstrumentedAttribute, values: list | tuple) -> "BaseBuilder":
         """包含于列表条件"""
-        if len(values) == 1:
-            return self.where(column == values[0])
+        if not isinstance(values, (list, tuple)):
+            raise TypeError("values must be a list or tuple")
 
-        return self.where(column.in_(values))
+        unique_values = unique_list(values, exclude_none=True)
+
+        if len(unique_values) == 1:
+            return self.where(column == unique_values[0])
+
+        return self.where(column.in_(unique_values))
 
     def not_in_(self, column: InstrumentedAttribute, values: list | tuple) -> "BaseBuilder":
         """不包含于列表条件"""
-        if len(values) == 1:
-            return self.where(column != values[0])
+        if not isinstance(values, (list, tuple)):
+            raise TypeError("values must be a list or tuple")
 
-        return self.where(column.notin_(values))
+        unique_values = unique_list(values, exclude_none=True)
+
+        if len(unique_values) == 1:
+            return self.where(column != unique_values[0])
+
+        return self.where(column.notin_(unique_values))
 
     def like(self, column: InstrumentedAttribute, pattern: str) -> "BaseBuilder":
         """模糊匹配条件"""
@@ -99,8 +120,13 @@ class BaseBuilder:
         """范围查询条件"""
         return self.where(column.between(start_value, end_value))
 
-    def contains_(self, column: InstrumentedAttribute, values: list) -> "BaseBuilder":
-        return self.where(column.contains(values))
+    def contains_(self, column: InstrumentedAttribute, values: list | tuple) -> "BaseBuilder":
+        if not isinstance(values, (list, tuple)):
+            raise TypeError("values must be a list or tuple")
+
+        unique_values = unique_list(values, exclude_none=True)
+
+        return self.where(column.contains(unique_values))
 
     def or_(self, *conditions: ColumnElement[bool]) -> "BaseBuilder":
         """
@@ -116,6 +142,7 @@ class BaseBuilder:
         """
         if not conditions:
             return self
+
         self._stmt = self._stmt.where(or_(*conditions))
         return self
 
@@ -190,10 +217,10 @@ class QueryBuilder(BaseBuilder):
             self,
             model_cls: type[ModelMixin],
             *,
-            include_deleted: bool | None = None,
             initial_where: ColumnExpressionArgument | None = None,
             custom_stmt: Select | None = None,
-
+            session_provider: SessionProvider = get_session,
+            include_deleted: bool | None = None
     ):
         """
         查询构建器基础类
@@ -206,7 +233,7 @@ class QueryBuilder(BaseBuilder):
         Raises:
             ValueError: 如果模型类无效
         """
-        super().__init__(model_cls=model_cls)
+        super().__init__(model_cls=model_cls, session_provider=session_provider)
 
         if custom_stmt is not None:
             self._stmt: Select = custom_stmt
@@ -234,30 +261,26 @@ class QueryBuilder(BaseBuilder):
         if include_deleted is False and self._model_cls.has_deleted_at_column:
             self._apply_delete_at_is_none()
 
-        async with get_session() as sess:
+        async with self._session_provider() as sess:
             try:
                 result = await sess.execute(self._stmt)
                 data = result.scalars().all()
             except Exception as e:
-                raise Exception(f"{self._model_cls.__name__} all error: {e}") from e
+                logger.error(f"{self._model_cls.__name__} get all error: {e}")
+                raise
         return data
 
     async def first(self, *, include_deleted: bool | None = None) -> MixinModelType | None:
         if include_deleted is False and self._model_cls.has_deleted_at_column:
             self._apply_delete_at_is_none()
 
-        async with get_session() as sess:
+        async with self._session_provider() as sess:
             try:
                 result = await sess.execute(self._stmt)
                 data = result.scalars().first()
             except Exception as e:
-                raise Exception(f"{self._model_cls.__name__} scalar_one_or_none error: {e}") from e
-        return data
-
-    async def get_or_exec(self, *, include_deleted: bool | None = None) -> MixinModelType | None:
-        data = await self.first(include_deleted=include_deleted)
-        if not data:
-            raise Exception(f"{self._model_cls.__name__} get_or_exec not found")
+                logger.error(f"{self._model_cls.__name__} get first error: {e}")
+                raise
         return data
 
     def paginate(self, *, page: int | None = None, limit: int | None = None) -> "QueryBuilder":
@@ -277,6 +300,7 @@ class CountBuilder(BaseBuilder):
             *,
             count_column: InstrumentedAttribute = None,
             is_distinct: bool = False,
+            session_provider: SessionProvider = get_session,
             include_deleted: bool = None
     ):
         """
@@ -287,7 +311,7 @@ class CountBuilder(BaseBuilder):
             count_column: 要计数的列（默认为主键ID）
             include_deleted: 是否包含已软删除的记录（默认False）
         """
-        super().__init__(model_cls)
+        super().__init__(model_cls, session_provider=session_provider)
 
         # 设置计数列（默认为主键）
         count_column: InstrumentedAttribute = count_column if count_column is not None else self._model_cls.id
@@ -309,12 +333,13 @@ class CountBuilder(BaseBuilder):
         return self._stmt
 
     async def count(self) -> int:
-        async with get_session() as sess:
+        async with self._session_provider() as sess:
             try:
                 exec_result = await sess.execute(self._stmt)
                 data = exec_result.scalar()
             except Exception as e:
-                raise Exception(f"{self._model_cls.__name__} count error: {e}") from e
+                logger.error(f"{self._model_cls.__name__} count error: {e}")
+                raise
         return data
 
 
@@ -323,7 +348,8 @@ class UpdateBuilder(BaseBuilder):
             self,
             *,
             model_cls: type[ModelMixin] | None = None,
-            model_ins: ModelMixin | None = None
+            model_ins: ModelMixin | None = None,
+            session_provider: SessionProvider = get_session
     ):
         """
         更新构建器初始化
@@ -341,7 +367,7 @@ class UpdateBuilder(BaseBuilder):
             raise Exception("must and can only provide one of model_class or model_instance")
 
         # 调用父类初始化
-        super().__init__(model_cls if model_cls is not None else model_ins.__class__)
+        super().__init__(model_cls if model_cls is not None else model_ins.__class__, session_provider=session_provider)
 
         # 初始化更新语句
         self._stmt: Update = update(self._model_cls)
@@ -422,12 +448,13 @@ class UpdateBuilder(BaseBuilder):
             logger.warning(f"{self._model_cls.__name__} no update data")
             return
 
-        async with get_session() as sess:
+        async with self._session_provider() as sess:
             try:
                 await sess.execute(self.update_stmt)
                 await sess.commit()
             except Exception as e:
-                raise Exception(f"{self._model_cls.__name__} execute update_stmt failed: {e}") from e
+                logger.error(f"{self._model_cls.__name__} execute update_stmt failed: {e}")
+                raise
 
 
 class DeleteBuilder(BaseBuilder):
@@ -444,7 +471,8 @@ class DeleteBuilder(BaseBuilder):
             self,
             *,
             model_cls: type[ModelMixin] | None = None,
-            model_ins: ModelMixin | None = None
+            model_ins: ModelMixin | None = None,
+            session_provider: SessionProvider = get_session
     ):
         """
         删除构建器初始化
@@ -462,7 +490,7 @@ class DeleteBuilder(BaseBuilder):
             raise Exception("must and can only provide one of model_class or model_instance")
 
         # 调用父类初始化
-        super().__init__(model_cls if model_cls is not None else model_ins.__class__)
+        super().__init__(model_cls if model_cls is not None else model_ins.__class__, session_provider=session_provider)
 
         # 初始化删除语句
         self._stmt: Delete = delete(self._model_cls)
@@ -486,7 +514,7 @@ class DeleteBuilder(BaseBuilder):
         异常:
             Exception: 当删除操作失败时抛出
         """
-        async with get_session() as sess:
+        async with self._session_provider() as sess:
             try:
                 result = await sess.execute(self.delete_stmt.execution_options(synchronize_session=False))
                 await sess.commit()
@@ -498,9 +526,9 @@ class DeleteBuilder(BaseBuilder):
                     logger.info(f"Successfully deleted {deleted_count} records from {self._model_cls.__name__}")
 
                 return deleted_count
-
             except Exception as e:
-                raise Exception(f"{self._model_cls.__name__} delete error: {traceback.format_exc()}") from e
+                logger.error(f"{self._model_cls.__name__} delete error: {e}")
+                raise
 
 
 def _validate_model_cls(model_cls: type, expected_type: type = type, subclass_of: type = ModelMixin):
@@ -533,8 +561,9 @@ def _validate_model_ins(model_ins: object, expected_type: type = ModelMixin):
 def new_cls_querier(
         model_cls: type[ModelMixin],
         *,
-        include_deleted: bool | None = None,
-        initial_where: ColumnExpressionArgument | None = None
+        initial_where: ColumnExpressionArgument | None = None,
+        session_provider: SessionProvider = get_session,
+        include_deleted: bool | None = None
 ) -> QueryBuilder:
     """创建一个新的查询器实例
 
@@ -545,15 +574,21 @@ def new_cls_querier(
         查询器实例
     """
     _validate_model_cls(model_cls)
-    return QueryBuilder(model_cls=model_cls, include_deleted=include_deleted, initial_where=initial_where)
+    return QueryBuilder(
+        model_cls=model_cls,
+        initial_where=initial_where,
+        session_provider=session_provider,
+        include_deleted=include_deleted
+    )
 
 
 def new_sub_querier(
         model_cls: type[ModelMixin],
         *,
         subquery: Subquery,
-        include_deleted: bool | None = None,
-        initial_where: ColumnExpressionArgument | None = None
+        initial_where: ColumnExpressionArgument | None = None,
+        session_provider: SessionProvider = get_session,
+        include_deleted: bool | None = None
 ) -> QueryBuilder:
     """创建一个新的子查询器实例
 
@@ -568,9 +603,10 @@ def new_sub_querier(
     alias = aliased(model_cls, subquery)
     return QueryBuilder(
         model_cls=model_cls,
-        include_deleted=include_deleted,
         initial_where=initial_where,
-        custom_stmt=select(alias)
+        custom_stmt=select(alias),
+        session_provider=session_provider,
+        include_deleted=include_deleted
     )
 
 
@@ -578,8 +614,9 @@ def new_custom_querier(
         model_cls: type[ModelMixin],
         *,
         custom_stmt: Select,
+        initial_where: ColumnExpressionArgument | None = None,
+        session_provider: SessionProvider = get_session,
         include_deleted: bool | None = None,
-        initial_where: ColumnExpressionArgument | None = None
 ) -> QueryBuilder:
     """创建一个新的自定义查询器实例
 
@@ -595,15 +632,17 @@ def new_custom_querier(
         model_cls=model_cls,
         include_deleted=include_deleted,
         initial_where=initial_where,
-        custom_stmt=custom_stmt
+        custom_stmt=custom_stmt,
+        session_provider=session_provider
     )
 
 
-def new_cls_updater(model_cls: type[ModelMixin]) -> UpdateBuilder:
+def new_cls_updater(model_cls: type[ModelMixin], *, session_provider: SessionProvider = get_session) -> UpdateBuilder:
     """创建一个基于模型类的更新器
 
     Args:
         model_cls: 必须是 ModelMixin 的子类（不是实例）
+        session_provider:
 
     Raises:
         Exception: 当输入无效时返回500错误
@@ -612,14 +651,15 @@ def new_cls_updater(model_cls: type[ModelMixin]) -> UpdateBuilder:
         UpdateBuilder: 更新器实例
     """
     _validate_model_cls(model_cls)
-    return UpdateBuilder(model_cls=model_cls)
+    return UpdateBuilder(model_cls=model_cls, session_provider=session_provider)
 
 
-def new_ins_updater(model_ins: ModelMixin) -> UpdateBuilder:
+def new_ins_updater(model_ins: ModelMixin, *, session_provider: SessionProvider = get_session) -> UpdateBuilder:
     """创建一个基于模型实例的更新器
 
     Args:
         model_ins: 必须是 ModelMixin 的非空实例
+        session_provider:
 
     Raises:
         Exception: 当输入无效时返回500错误
@@ -628,27 +668,29 @@ def new_ins_updater(model_ins: ModelMixin) -> UpdateBuilder:
         UpdateBuilder: 更新器实例
     """
     _validate_model_ins(model_ins)
-    return UpdateBuilder(model_ins=model_ins)
+    return UpdateBuilder(model_ins=model_ins, session_provider=session_provider)
 
 
-def new_deleter(model_cls: type[ModelMixin]) -> DeleteBuilder:
+def new_deleter(model_cls: type[ModelMixin], *, session_provider: SessionProvider = get_session) -> DeleteBuilder:
     """创建一个新的删除器实例
 
     参数:
         model_cls: 要删除的模型类
+        session_provider:
 
     返回:
         删除器实例
     """
     _validate_model_cls(model_cls)
-    return DeleteBuilder(model_cls=model_cls)
+    return DeleteBuilder(model_cls=model_cls, session_provider=session_provider)
 
 
-def new_ins_deleter(model_ins: ModelMixin) -> DeleteBuilder:
+def new_ins_deleter(model_ins: ModelMixin, *, session_provider: SessionProvider = get_session) -> DeleteBuilder:
     """创建一个基于模型实例的删除器
 
     Args:
         model_ins: 必须是 ModelMixin 的非空实例
+        session_provider:
 
     Raises:
         Exception: 当输入无效时返回500错误
@@ -657,24 +699,26 @@ def new_ins_deleter(model_ins: ModelMixin) -> DeleteBuilder:
         DeleteBuilder: 删除器实例
     """
     _validate_model_ins(model_ins)
-    return DeleteBuilder(model_ins=model_ins)
+    return DeleteBuilder(model_ins=model_ins, session_provider=session_provider)
 
 
 def new_counter(
         model_cls: type[ModelMixin],
         *,
+        session_provider: SessionProvider = get_session,
         include_deleted: bool | None = None
 ) -> CountBuilder:
     """创建一个新的计数器实例
 
     参数:
         model_cls: 要计数的模型类
+        session_provider:
 
     返回:
         计数器实例
     """
     _validate_model_cls(model_cls)
-    return CountBuilder(model_cls=model_cls, include_deleted=include_deleted)
+    return CountBuilder(model_cls=model_cls, session_provider=session_provider, include_deleted=include_deleted)
 
 
 def new_col_counter(
@@ -682,6 +726,7 @@ def new_col_counter(
         *,
         count_column: InstrumentedAttribute,
         is_distinct: bool = False,
+        session_provider: SessionProvider = get_session,
         include_deleted: bool | None = None
 ) -> CountBuilder:
     """创建一个新的计数器实例，针对特定的列
@@ -695,46 +740,9 @@ def new_col_counter(
     """
     _validate_model_cls(model_cls)
     return CountBuilder(
-        model_cls=model_cls, count_column=count_column, include_deleted=include_deleted, is_distinct=is_distinct
+        model_cls=model_cls,
+        count_column=count_column,
+        session_provider=session_provider,
+        include_deleted=include_deleted,
+        is_distinct=is_distinct
     )
-
-
-class BaseORMHelper:
-    """[DEPRECATED] This class is deprecated and will be removed in future versions."""
-
-    def __init__(self):
-        pass
-
-    @classmethod
-    def querier(cls, model_cls: type[ModelMixin]):
-        return new_cls_querier(model_cls, include_deleted=False)
-
-    @classmethod
-    def querier_include_deleted(cls, model_cls: type[ModelMixin]):
-        return new_cls_querier(model_cls=model_cls, include_deleted=True)
-
-    @classmethod
-    def updater(cls, *, model_cls: type[ModelMixin] = None, model_ins: ModelMixin = None):
-        if (model_cls is None) == (model_ins is None):
-            raise Exception("must and can only provide one of model_class or model_instance")
-
-        if model_cls:
-            return cls.cls_updater(model_cls=model_cls)
-        else:
-            return cls.ins_updater(model_ins=model_ins)
-
-    @classmethod
-    def cls_updater(cls, model_cls: type[ModelMixin]):
-        return new_cls_updater(model_cls=model_cls)
-
-    @classmethod
-    def ins_updater(cls, model_ins: ModelMixin):
-        return new_ins_updater(model_ins=model_ins)
-
-    @classmethod
-    def counter(cls, model_cls: type[ModelMixin]):
-        return new_counter(model_cls)
-
-    @classmethod
-    def deleter(cls, *, model_cls: type[ModelMixin] = None):
-        return new_deleter(model_cls=model_cls)

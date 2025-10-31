@@ -10,7 +10,7 @@ from fastapi import APIRouter, Request
 
 from internal.models.user import User
 from internal.utils.exception import AppException
-from internal.utils.orm_helpers import new_cls_querier, new_cls_updater, new_counter
+from pkg.orm_tool import new_cls_querier, new_cls_updater, new_counter
 from pkg.anyio_task_manager import anyio_task_manager
 from pkg.logger_tool import logger
 from pkg.resp_tool import response_factory
@@ -121,7 +121,7 @@ async def test_dao():
 
     try:
         # 1. 验证基础查询
-        created_user = await new_cls_querier(User).eq_(User.id, test_user.id).get_or_exec()
+        created_user = await new_cls_querier(User).eq_(User.id, test_user.id).first()
         assert created_user.id == test_user.id
         logger.info(f"test created success")
 
@@ -179,7 +179,7 @@ async def test_dao():
         # AND 组合
         and_users = await (new_cls_querier(User).
                            eq_(User.username, test_user.username).
-                           eq_(User.account, test_user.account).get_or_exec())
+                           eq_(User.account, test_user.account).first())
         assert and_users.username == test_user.username, and_users.account == test_user.account
         logger.info(f"test and success")
 
@@ -187,7 +187,7 @@ async def test_dao():
         where_user = await new_cls_querier(User).where(
             User.username == test_user.username,
             User.account == test_user.account
-        ).get_or_exec()
+        ).first()
         assert where_user.username == test_user.username, where_user.account == test_user.account
         logger.info(f"test where success")
 
@@ -211,7 +211,7 @@ async def test_dao():
         updated_name = f"updated_name_{unique_hex}"
         await new_cls_updater(model_cls=User).eq_(User.id, test_user.id).update(username=updated_name).execute()
         # 重新查询验证更新
-        updated_user = await new_cls_querier(User).eq_(User.id, test_user.id).get_or_exec()
+        updated_user = await new_cls_querier(User).eq_(User.id, test_user.id).first()
         assert updated_user.username == updated_name
         logger.info(f"test update-1 success")
 
@@ -220,7 +220,7 @@ async def test_dao():
         await new_cls_updater(model_cls=User).eq_(User.id, test_user.id).update(
             **{"username": updated_name}).execute()
         # 重新查询验证更新
-        updated_user = await new_cls_querier(User).eq_(User.id, test_user.id).get_or_exec()
+        updated_user = await new_cls_querier(User).eq_(User.id, test_user.id).first()
         assert updated_user.username == updated_name
         logger.info(f"test update-2 success")
     except Exception as e:
