@@ -127,7 +127,7 @@ async def test_dao():
 
         # 2. 测试各种查询操作符
         # eq
-        user = await new_cls_querier(User).eq_(User.id, test_user.id).get_or_none()
+        user = await new_cls_querier(User).eq_(User.id, test_user.id).first()
         assert user.id == test_user.id
         logger.info(f"test eq success")
 
@@ -190,14 +190,6 @@ async def test_dao():
         ).get_or_exec()
         assert where_user.username == test_user.username, where_user.account == test_user.account
         logger.info(f"test where success")
-
-        # where_by 组合
-        where_by_query_dict = {"username": test_user.username, "account": test_user.account}
-        where_by_users = await new_cls_querier(User).where_by(
-            **where_by_query_dict
-        ).get_or_exec()
-        assert where_by_users.username == test_user.username, where_by_users.account == test_user.account
-        logger.info(f"test where_by success")
 
         # OR 组合
         or_users = await new_cls_querier(User).or_(

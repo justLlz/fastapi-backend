@@ -81,7 +81,7 @@ class BaseDao:
                 self._model_cls.get_creator_id_column() == creator_id
             )
 
-        return await querier.get_or_none(include_deleted=include_deleted)
+        return await querier.first(include_deleted=include_deleted)
 
     async def query_by_id_or_exec(
             self,

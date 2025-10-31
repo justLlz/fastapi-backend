@@ -6,7 +6,7 @@ from sqlalchemy import (Column, ColumnExpressionArgument, Delete, Function, Sele
                         delete, distinct, func, or_,
                         select, update)
 from sqlalchemy.orm import InstrumentedAttribute, aliased
-from sqlalchemy.sql.elements import BinaryExpression, ClauseElement
+from sqlalchemy.sql.elements import BinaryExpression, ClauseElement, ColumnElement
 
 from internal.infra.db import get_session
 from internal.models import ModelMixin
@@ -102,7 +102,7 @@ class BaseBuilder:
     def contains_(self, column: InstrumentedAttribute, values: list) -> "BaseBuilder":
         return self.where(column.contains(values))
 
-    def or_(self, *conditions: BinaryExpression) -> "BaseBuilder":
+    def or_(self, *conditions: ColumnElement[bool]) -> "BaseBuilder":
         """
         添加 OR 条件组合
         示例:
@@ -254,11 +254,8 @@ class QueryBuilder(BaseBuilder):
                 raise Exception(f"{self._model_cls.__name__} scalar_one_or_none error: {e}") from e
         return data
 
-    async def get_or_none(self, *, include_deleted: bool | None = None) -> MixinModelType | None:
-        return await self.first(include_deleted=include_deleted)
-
     async def get_or_exec(self, *, include_deleted: bool | None = None) -> MixinModelType | None:
-        data = await self.get_or_none(include_deleted=include_deleted)
+        data = await self.first(include_deleted=include_deleted)
         if not data:
             raise Exception(f"{self._model_cls.__name__} get_or_exec not found")
         return data
