@@ -31,7 +31,7 @@ class BaseBuilder:
             self,
             model_cls: type[MixinModelType],
             *,
-            session_provider: SessionProvider = get_session,
+            session_provider: SessionProvider = get_session
     ):
         """
         初始化查询构建器

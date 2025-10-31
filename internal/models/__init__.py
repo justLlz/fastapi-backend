@@ -8,6 +8,7 @@ from internal.infra.db import Base, get_session
 from internal.utils.context import get_user_id_context_var
 from pkg import get_utc_without_tzinfo
 from pkg.logger_tool import logger
+from pkg.orm_tool import SessionProvider
 from pkg.snowflake_tool import generate_snowflake_id
 
 
@@ -22,13 +23,17 @@ class ModelMixin(Base):
     deleted_at = Column(DateTime(timezone=False), nullable=True, default=None, server_default=None)
 
     @classmethod
-    async def add_all_dict(cls, items: list[dict]):
+    async def add_all_dict(
+            cls,
+            items: list[dict],
+            session_provider: SessionProvider = get_session
+    ):
         if not items:
             return
 
         ins_list = [cls.create(**item) for item in items]
         try:
-            async with get_session() as sess:
+            async with session_provider() as sess:
                 async with sess.begin():
                     sess.add_all(ins_list)
         except Exception as e:
@@ -36,28 +41,36 @@ class ModelMixin(Base):
             raise e
 
     @classmethod
-    async def add_all_ins(cls, ins_list: list["ModelMixin"]):
+    async def add_all_ins(
+            cls,
+            ins_list: list["ModelMixin"],
+            session_provider: SessionProvider = get_session
+    ):
         if not ins_list:
             return
 
         try:
-            async with get_session() as sess:
+            async with session_provider() as sess:
                 async with sess.begin():
                     sess.add_all(ins_list)
         except Exception as e:
             logger.error(f"{cls.__name__} add_all_ins failed, error={e}")
             raise e
 
-    async def save(self):
+    async def save(self, session_provider: SessionProvider = get_session):
         try:
-            async with get_session() as sess:
+            async with session_provider() as sess:
                 sess.add(self)
                 await sess.commit()
         except Exception as e:
             logger.error(f"{self.__class__.__name__} save error: {e}")
             raise e
 
-    async def update(self, **kwargs):
+    async def update(
+            self,
+            session_provider: SessionProvider = get_session,
+            **kwargs
+    ):
         for column_name, value in kwargs.items():
             if not self.has_column(column_name):
                 continue
@@ -72,7 +85,7 @@ class ModelMixin(Base):
             setattr(self, self.updater_id_column_name(), user_id)
 
         try:
-            async with get_session() as sess:
+            async with session_provider() as sess:
                 sess.add(self)
                 await sess.commit()
         except Exception as e:
