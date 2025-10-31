@@ -124,11 +124,4 @@ class ApsSchedulerTool:
 
 
 apscheduler_manager = ApsSchedulerTool(timezone="UTC", max_instances=50)
-# ------------------------- 使用示例 -------------------------
-#
-# def start_scheduler():
-#     tool.start()
-#     tool.add_cron_job(handle_deploy_svc_monitor, minute='*', second=0)
-#
-# async def shutdown_scheduler():
-#     await tool.shutdown(wait=True)
+

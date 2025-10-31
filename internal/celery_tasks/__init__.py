@@ -1,4 +1,3 @@
-# internal/celery_tasks/bootstrap_db.py
 import asyncio
 import os
 
