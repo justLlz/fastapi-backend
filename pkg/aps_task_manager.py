@@ -123,5 +123,9 @@ class ApsSchedulerTool:
         return self._started
 
 
-apscheduler_manager = ApsSchedulerTool(timezone="UTC", max_instances=50)
-
+def new_aps_scheduler_tool(
+        timezone: str = "UTC",
+        job_defaults: dict[str, Any] | None = None,
+        max_instances: int = 50,
+) -> ApsSchedulerTool:
+    return ApsSchedulerTool(timezone=timezone, job_defaults=job_defaults, max_instances=max_instances)

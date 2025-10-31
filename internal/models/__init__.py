@@ -1,4 +1,5 @@
 """该目录主要用于数据库模型"""
+from typing import TypeVar
 
 from sqlalchemy import BigInteger, Column, DateTime
 from sqlalchemy.orm import InstrumentedAttribute
@@ -187,3 +188,6 @@ class ModelMixin(Base):
     @classmethod
     def get_creator_id_column(cls) -> InstrumentedAttribute:
         return cls.get_column_or_none(cls.creator_id_column_name())
+
+
+MixinModelType = TypeVar("MixinModelType", bound=ModelMixin)  # 定义一个泛型变量 T，继承自 ModelMixin

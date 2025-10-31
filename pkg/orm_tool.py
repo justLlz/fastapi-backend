@@ -11,9 +11,8 @@ from sqlalchemy.orm import InstrumentedAttribute, aliased
 from sqlalchemy.sql.elements import ClauseElement, ColumnElement
 
 from internal.infra.db import get_session
-from internal.models import ModelMixin
+from internal.models import MixinModelType, ModelMixin
 from internal.utils.context import get_user_id_context_var
-from internal.utils.mixin_type import MixinModelType
 from pkg import get_utc_without_tzinfo, unique_list
 from pkg.logger_tool import logger
 
