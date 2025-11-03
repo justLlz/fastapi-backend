@@ -1,4 +1,3 @@
-# 生产用：更小更干净，不带 SSH
 FROM python:3.12.9-slim
 
 ENV TZ=Etc/UTC \
