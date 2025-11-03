@@ -1,0 +1,27 @@
+# 生产用：更小更干净，不带 SSH
+FROM python:3.12.9-slim
+
+ENV TZ=Etc/UTC \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+# 先复制依赖清单以利用构建缓存
+# 如果用 poetry/pdm，请改成相应文件和安装命令
+COPY requirements.txt ./
+RUN pip install --upgrade pip setuptools wheel \
+ && pip install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ -r requirements.txt
+
+# 再复制业务代码
+COPY . .
+
+# 根据你的程序暴露端口（例如 FastAPI/Uvicorn 通常 8000）
+EXPOSE 8000
+
+# 运行 FastAPI 应用
+ENTRYPOINT ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--loop", "uvloop", "--http", "httptools", "--access-log"]
