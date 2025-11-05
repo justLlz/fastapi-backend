@@ -30,7 +30,6 @@ def remove_logging_logger():
     logging.getLogger("uvicorn.access").handlers = []
     logging.getLogger("uvicorn.error").handlers = []
     logging.getLogger("uvicorn").handlers = []
-    pass
 
 
 def init_logger(env: str = "local"):
