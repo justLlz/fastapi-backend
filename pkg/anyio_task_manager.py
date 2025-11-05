@@ -299,34 +299,23 @@ class AnyioTaskManager:
         results: list[Any] = [None] * len(args_tuple_list)
         func_name = self.get_coro_func_name(sync_func)
 
-        async def _one(index: int, args_tuple: tuple, kwargs_dict: dict | None):
-            bound = partial(sync_func, *(args_tuple or ()), **(kwargs_dict or {}))
-            async with self._global_limiter:
-                try:
-                    logger.info(
-                        f"ThreadTask-{index} ({func_name}, args={args_tuple}, kwargs={kwargs_dict}) started.")
-                    if timeout and timeout > 0:
-                        with fail_after(timeout):
-                            res = await to_thread.run_sync(bound, cancellable=cancellable, limiter=self._thread_limiter)
-                    else:
-                        res = await to_thread.run_sync(bound, cancellable=cancellable, limiter=self._thread_limiter)
-                    results[index] = res
-                    logger.info(f"ThreadTask-{index} ({func_name}) completed.")
-                except TimeoutError:
-                    results[index] = None
-                    logger.error(f"ThreadTask-{index} ({func_name}) timed out after {timeout} seconds.")
-                except BaseException as e:
-                    # 取消语义：仅在等待结果时能被取消；底层线程不会被强杀
-                    if isinstance(e, anyio.get_cancelled_exc_class()):
-                        logger.info(f"ThreadTask-{index} ({func_name}) cancelled while awaiting result.")
-                    else:
-                        logger.error(f"ThreadTask-{index} ({func_name}) failed. err={e}")
-                    results[index] = None
-
         async with create_task_group() as tg:
             for i, (args, kwargs) in enumerate(zip(args_tuple_list, kwargs_dict_list, strict=False)):
-                tg.start_soon(_one, i, args, kwargs)
-
+                bound = partial(
+                    self._one_backend_sync_call,
+                    index=i,
+                    args_tuple=args,
+                    kwargs_dict=kwargs,
+                    sync_func=sync_func,
+                    func_name=func_name,
+                    timeout=timeout,
+                    cancellable=cancellable,
+                    run_sync_fn=to_thread.run_sync,  # 或 to_process.run_sync
+                    backend_limiter=self._thread_limiter,  # 或 self._process_limiter
+                    prefix="ThreadTask",  # 或 "ProcessTask"
+                    results=results,
+                )
+                tg.start_soon(bound)  # type: ignore[arg-type]
         return results
 
     async def run_in_processes(
@@ -346,39 +335,23 @@ class AnyioTaskManager:
         results: list[Any] = [None] * len(args_tuple_list)
         func_name = self.get_coro_func_name(sync_func)
 
-        async def _one(index: int, args_tuple: tuple, kwargs_dict: dict | None):
-            # 注意：partial 会被序列化到子进程执行
-            bound = partial(sync_func, *(args_tuple or ()), **(kwargs_dict or {}))
-            async with self._global_limiter:
-                try:
-                    logger.info(
-                        f"ProcessTask-{index} ({func_name}, args={args_tuple}, kwargs={kwargs_dict}) started.")
-                    if timeout and timeout > 0:
-                        with fail_after(timeout):
-                            res = await to_process.run_sync(
-                                bound, cancellable=cancellable, limiter=self._process_limiter
-                            )
-                    else:
-                        res = await to_process.run_sync(
-                            bound, cancellable=cancellable, limiter=self._process_limiter
-                        )
-                    results[index] = res
-                    logger.info(f"ProcessTask-{index} ({func_name}) completed.")
-                except TimeoutError:
-                    results[index] = None
-                    logger.error(f"ProcessTask-{index} ({func_name}) timed out after {timeout} seconds.")
-                except BaseException as e:
-                    # 等待结果阶段的取消会在这里表现为 CancelledError
-                    if isinstance(e, anyio.get_cancelled_exc_class()):
-                        logger.info(f"ProcessTask-{index} ({func_name}) cancelled while awaiting result.")
-                    else:
-                        logger.error(f"ProcessTask-{index} ({func_name}) failed. err={e}")
-                    results[index] = None
-
         async with create_task_group() as tg:
             for i, (args, kwargs) in enumerate(zip(args_tuple_list, kwargs_dict_list, strict=False)):
-                tg.start_soon(_one, i, args, kwargs)
-
+                bound = partial(
+                    self._one_backend_sync_call,
+                    index=i,
+                    args_tuple=args,
+                    kwargs_dict=kwargs,
+                    sync_func=sync_func,
+                    func_name=func_name,
+                    timeout=timeout,
+                    cancellable=cancellable,
+                    run_sync_fn=to_process.run_sync,
+                    backend_limiter=self._process_limiter,
+                    prefix="ProcessTask",
+                    results=results,
+                )
+                tg.start_soon(bound)  # type: ignore[arg-type]
         return results
 
     @staticmethod
@@ -389,6 +362,44 @@ class AnyioTaskManager:
         if len(kwargs_dict_list) != len(args_tuple_list):
             raise ValueError("args_tuple_list must be the same length as kwargs_dict_list.")
         return args_tuple_list, kwargs_dict_list
+
+    async def _one_backend_sync_call(
+            self,
+            *,
+            index: int,
+            args_tuple: tuple,
+            kwargs_dict: dict | None,
+            sync_func: Callable[..., Any],
+            func_name: str,
+            timeout: float | None,
+            cancellable: bool,
+            run_sync_fn: Callable[..., Awaitable[Any]],  # to_thread.run_sync / to_process.run_sync
+            backend_limiter: CapacityLimiter,  # self._thread_limiter / self._process_limiter
+            prefix: str,  # "ThreadTask" / "ProcessTask"
+            results: list[Any]
+    ):
+        """统一的单次同步调用执行器，供线程/进程批量跑时复用。"""
+        bound = partial(sync_func, *(args_tuple or ()), **(kwargs_dict or {}))
+        async with self._global_limiter:
+            try:
+                logger.info(f"{prefix}-{index} ({func_name}, args={args_tuple}, kwargs={kwargs_dict}) started.")
+                if timeout and timeout > 0:
+                    with fail_after(timeout):
+                        res = await run_sync_fn(bound, cancellable=cancellable, limiter=backend_limiter)
+                else:
+                    res = await run_sync_fn(bound, cancellable=cancellable, limiter=backend_limiter)
+                results[index] = res
+                logger.info(f"{prefix}-{index} ({func_name}) completed.")
+            except TimeoutError:
+                results[index] = None
+                logger.error(f"{prefix}-{index} ({func_name}) timed out after {timeout} seconds.")
+            except BaseException as e:
+                # 等待阶段的取消在这里体现为 CancelledError（线程/进程一致）
+                if isinstance(e, anyio.get_cancelled_exc_class()):
+                    logger.info(f"{prefix}-{index} ({func_name}) cancelled while awaiting result.")
+                else:
+                    logger.error(f"{prefix}-{index} ({func_name}) failed. err={e}")
+                results[index] = None
 
 
 def new_anyio_task_manager() -> AnyioTaskManager:
