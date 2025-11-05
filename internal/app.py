@@ -5,11 +5,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 
+from internal.aps_tasks import apscheduler_manager
 from internal.config.setting import setting
 from internal.constant import REDIS_KEY_LOCK_PREFIX
 from internal.utils.cache_helpers import cache
 from pkg import SYS_ENV, SYS_NAMESPACE
-from pkg.aps_task_manager import apscheduler_manager
 from pkg.logger_tool import logger
 from pkg.resp_tool import response_factory
 
@@ -117,6 +117,6 @@ async def lifespan(_app: FastAPI):
     yield
     if is_scheduler_master:
         logger.info("Shutting down APScheduler")
-        apscheduler_manager.shutdown()
+        await apscheduler_manager.shutdown()
     # 关闭时的清理逻辑
     logger.warning("Application is about to close.")
