@@ -137,7 +137,7 @@ async def test_dao():
         logger.info(f"test ne success")
 
         # gt
-        gt_users = await new_cls_querier(User).gt_(User.id, test_user.id).all()
+        gt_users: list[User] = await new_cls_querier(User).gt_(User.id, test_user.id).all()
         assert all(u.id > test_user.id for u in gt_users)
         logger.info(f"test gt success")
 

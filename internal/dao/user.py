@@ -1,4 +1,5 @@
 from internal.dao import BaseDao
+from internal.infra.db import get_session
 from internal.models.user import User
 
 
@@ -9,4 +10,4 @@ class UserDao(BaseDao):
         return await self.querier.where(self._model_cls.phone == phone).first()
 
 
-user_dao = UserDao()
+user_dao = UserDao(session_provider=get_session)
