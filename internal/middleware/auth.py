@@ -20,10 +20,16 @@ auth_token_white = [
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next)-> Response:
+    async def dispatch(self, request: Request, call_next) -> Response:
         url_path = request.url.path
-        # openapi验签逻辑
-        if url_path.startswith("/openapi") and url_path != "/openapi.json":
+        if url_path.startswith("/api/v1/public"):
+            return await call_next(request)
+
+        if url_path in auth_token_white or url_path.startswith("/test"):
+            logger.info(f"skip auth: {url_path}")
+            return await call_next(request)
+
+        if url_path.startswith("/v1/internal"):
             x_signature = request.headers.get("X-Signature")
             x_timestamp = request.headers.get("X-Timestamp")
             x_nonce = request.headers.get("X-Nonce")
@@ -31,11 +37,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 return response_factory.resp_401(
                     msg=f"signature_auth failed, x_signature={x_signature}, x_timestamp={x_timestamp}, x_nonce={x_nonce}"
                 )
-            return await call_next(request)
-
-        # 跳过无需认证的路径
-        if url_path in auth_token_white or url_path.startswith("/test"):
-            logger.info(f"skip auth: {url_path}")
             return await call_next(request)
 
         # token 校验
