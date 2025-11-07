@@ -20,8 +20,7 @@ WORKDIR /app
 FROM base AS deps
 # 如果你的依赖里含有需要编译的包（如 uvloop、psycopg2、lxml 等），
 # 这里安装最小化的编译工具链。按需添加其它 -dev 包。
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      build-essential \
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # 只拷贝依赖清单以利用缓存
