@@ -4,7 +4,7 @@ from starlette.responses import Response
 
 from internal.core.auth_token import verify_token
 from pkg.signature_tool import signature_auth_helper
-from internal.utils.context import set_user_id_context_var
+from pkg.context_tool import set_user_id_context_var
 from pkg.logger_tool import logger
 from pkg.resp_tool import response_factory
 

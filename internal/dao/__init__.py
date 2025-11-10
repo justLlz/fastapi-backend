@@ -7,10 +7,11 @@ from sqlalchemy.orm import InstrumentedAttribute
 from internal.models import MixinModelType, ModelMixin
 from internal.utils.exception import AppException
 from pkg.logger_tool import logger
-from pkg.orm_tool import (CountBuilder, QueryBuilder, SessionProvider, UpdateBuilder, new_cls_querier,
+from pkg.orm_tool import (CountBuilder, QueryBuilder, UpdateBuilder, new_cls_querier,
                           new_cls_updater,
                           new_col_counter, new_counter,
                           new_ins_updater, new_sub_querier)
+from pkg.types import SessionProvider
 
 
 class BaseDao:

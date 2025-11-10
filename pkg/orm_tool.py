@@ -1,21 +1,17 @@
-from collections.abc import Callable
 from datetime import datetime
-from typing import Any, AsyncContextManager
+from typing import Any
 
 from sqlalchemy import (Column, ColumnExpressionArgument, Delete, Function, Select, Subquery, Update,
-                        delete, distinct, func, or_,
+                        distinct, func, or_,
                         select, update)
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute, aliased
 from sqlalchemy.sql.elements import ClauseElement, ColumnElement
 
-from internal.infra.db import get_session
 from internal.models import MixinModelType, ModelMixin
-from internal.utils.context import get_user_id_context_var
 from pkg import get_utc_without_tzinfo, unique_list
+from pkg.context_tool import get_user_id_context_var
 from pkg.logger_tool import logger
-
-SessionProvider = Callable[..., AsyncContextManager[AsyncSession]]
+from pkg.types import SessionProvider
 
 
 class BaseBuilder:
@@ -27,7 +23,7 @@ class BaseBuilder:
             self,
             model_cls: type[MixinModelType],
             *,
-            session_provider: SessionProvider = get_session
+            session_provider: SessionProvider
     ):
         """
         初始化查询构建器
@@ -213,7 +209,7 @@ class QueryBuilder(BaseBuilder):
             *,
             initial_where: ColumnExpressionArgument | None = None,
             custom_stmt: Select | None = None,
-            session_provider: SessionProvider = get_session,
+            session_provider: SessionProvider,
             include_deleted: bool | None = None
     ):
         """
@@ -294,7 +290,7 @@ class CountBuilder(BaseBuilder):
             *,
             count_column: InstrumentedAttribute = None,
             is_distinct: bool = False,
-            session_provider: SessionProvider = get_session,
+            session_provider: SessionProvider,
             include_deleted: bool = None
     ):
         """
@@ -343,7 +339,7 @@ class UpdateBuilder(BaseBuilder):
             *,
             model_cls: type[ModelMixin] | None = None,
             model_ins: ModelMixin | None = None,
-            session_provider: SessionProvider = get_session
+            session_provider: SessionProvider
     ):
         """
         更新构建器初始化
@@ -451,79 +447,6 @@ class UpdateBuilder(BaseBuilder):
                 raise
 
 
-class DeleteBuilder(BaseBuilder):
-    """删除构建器，支持物理删除操作
-
-    特性:
-        - 支持通过模型类或模型实例初始化
-        - 支持批量删除条件构建
-        - 自动化的错误处理和日志记录
-        - 一致的 API 设计风格
-    """
-
-    def __init__(
-            self,
-            *,
-            model_cls: type[ModelMixin] | None = None,
-            model_ins: ModelMixin | None = None,
-            session_provider: SessionProvider = get_session
-    ):
-        """
-        删除构建器初始化
-
-        参数:
-            model_class: 要删除的模型类（用于批量删除）
-            model_instance: 要删除的模型实例（用于单条记录删除）
-
-        注意:
-            - 必须且只能提供 model_class 或 model_instance 中的一个
-            - 如果提供 model_instance，会自动添加 WHERE id=instance.id 条件
-        """
-        # 参数校验
-        if (model_cls is None) == (model_ins is None):
-            raise Exception("must and can only provide one of model_class or model_instance")
-
-        # 调用父类初始化
-        super().__init__(model_cls if model_cls is not None else model_ins.__class__, session_provider=session_provider)
-
-        # 初始化删除语句
-        self._stmt: Delete = delete(self._model_cls)
-
-        # 如果是实例删除，添加ID条件
-        if model_ins is not None:
-            model_id_column: InstrumentedAttribute = self._model_cls.get_column_or_none("id")
-            self._stmt = self._stmt.where(model_id_column == model_ins.id)
-
-    @property
-    def delete_stmt(self) -> Delete:
-        """获取最终的删除语句（带属性访问器）"""
-        return self._stmt
-
-    async def execute(self):
-        """执行删除操作
-
-        返回:
-            删除的记录数
-
-        异常:
-            Exception: 当删除操作失败时抛出
-        """
-        async with self._session_provider() as sess:
-            try:
-                result = await sess.execute(self.delete_stmt.execution_options(synchronize_session=False))
-                await sess.commit()
-
-                deleted_count = result.rowcount
-                if deleted_count == 0:
-                    logger.warning(f"No records deleted from {self._model_cls.__name__}")
-                else:
-                    logger.info(f"Successfully deleted {deleted_count} records from {self._model_cls.__name__}")
-
-            except Exception as e:
-                logger.error(f"{self._model_cls.__name__} delete error: {e}")
-                raise
-
-
 def _validate_model_cls(model_cls: type, expected_type: type = type, subclass_of: type = ModelMixin):
     """校验 model_cls 是否为指定的类型且是指定类的子类"""
     if model_cls is None:
@@ -555,7 +478,7 @@ def new_cls_querier(
         model_cls: type[ModelMixin],
         *,
         initial_where: ColumnExpressionArgument | None = None,
-        session_provider: SessionProvider = get_session,
+        session_provider: SessionProvider,
         include_deleted: bool | None = None
 ) -> QueryBuilder:
     """创建一个新的查询器实例
@@ -580,7 +503,7 @@ def new_sub_querier(
         *,
         subquery: Subquery,
         initial_where: ColumnExpressionArgument | None = None,
-        session_provider: SessionProvider = get_session,
+        session_provider: SessionProvider,
         include_deleted: bool | None = None
 ) -> QueryBuilder:
     """创建一个新的子查询器实例
@@ -608,7 +531,7 @@ def new_custom_querier(
         *,
         custom_stmt: Select,
         initial_where: ColumnExpressionArgument | None = None,
-        session_provider: SessionProvider = get_session,
+        session_provider: SessionProvider,
         include_deleted: bool | None = None,
 ) -> QueryBuilder:
     """创建一个新的自定义查询器实例
@@ -630,7 +553,7 @@ def new_custom_querier(
     )
 
 
-def new_cls_updater(model_cls: type[ModelMixin], *, session_provider: SessionProvider = get_session) -> UpdateBuilder:
+def new_cls_updater(model_cls: type[ModelMixin], *, session_provider: SessionProvider) -> UpdateBuilder:
     """创建一个基于模型类的更新器
 
     Args:
@@ -647,7 +570,7 @@ def new_cls_updater(model_cls: type[ModelMixin], *, session_provider: SessionPro
     return UpdateBuilder(model_cls=model_cls, session_provider=session_provider)
 
 
-def new_ins_updater(model_ins: ModelMixin, *, session_provider: SessionProvider = get_session) -> UpdateBuilder:
+def new_ins_updater(model_ins: ModelMixin, *, session_provider: SessionProvider) -> UpdateBuilder:
     """创建一个基于模型实例的更新器
 
     Args:
@@ -664,41 +587,10 @@ def new_ins_updater(model_ins: ModelMixin, *, session_provider: SessionProvider 
     return UpdateBuilder(model_ins=model_ins, session_provider=session_provider)
 
 
-def new_deleter(model_cls: type[ModelMixin], *, session_provider: SessionProvider = get_session) -> DeleteBuilder:
-    """创建一个新的删除器实例
-
-    参数:
-        model_cls: 要删除的模型类
-        session_provider:
-
-    返回:
-        删除器实例
-    """
-    _validate_model_cls(model_cls)
-    return DeleteBuilder(model_cls=model_cls, session_provider=session_provider)
-
-
-def new_ins_deleter(model_ins: ModelMixin, *, session_provider: SessionProvider = get_session) -> DeleteBuilder:
-    """创建一个基于模型实例的删除器
-
-    Args:
-        model_ins: 必须是 ModelMixin 的非空实例
-        session_provider:
-
-    Raises:
-        Exception: 当输入无效时返回500错误
-
-    Returns:
-        DeleteBuilder: 删除器实例
-    """
-    _validate_model_ins(model_ins)
-    return DeleteBuilder(model_ins=model_ins, session_provider=session_provider)
-
-
 def new_counter(
         model_cls: type[ModelMixin],
         *,
-        session_provider: SessionProvider = get_session,
+        session_provider: SessionProvider,
         include_deleted: bool | None = None
 ) -> CountBuilder:
     """创建一个新的计数器实例
@@ -719,7 +611,7 @@ def new_col_counter(
         *,
         count_column: InstrumentedAttribute,
         is_distinct: bool = False,
-        session_provider: SessionProvider = get_session,
+        session_provider: SessionProvider,
         include_deleted: bool | None = None
 ) -> CountBuilder:
     """创建一个新的计数器实例，针对特定的列

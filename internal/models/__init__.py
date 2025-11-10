@@ -5,10 +5,10 @@ from sqlalchemy import BigInteger, Column, DateTime
 from sqlalchemy.orm import InstrumentedAttribute
 
 from internal.infra.db import Base, get_session
-from internal.utils.context import get_user_id_context_var
+from pkg.context_tool import get_user_id_context_var
 from pkg import get_utc_without_tzinfo
 from pkg.logger_tool import logger
-from pkg.orm_tool import SessionProvider
+from pkg.types import SessionProvider
 from pkg.snowflake_tool import generate_snowflake_id
 
 
