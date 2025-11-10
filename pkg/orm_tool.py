@@ -1,6 +1,6 @@
-from collections.abc import AsyncGenerator
+from collections.abc import Callable
 from datetime import datetime
-from typing import Any, Protocol
+from typing import Any, AsyncContextManager
 
 from sqlalchemy import (Column, ColumnExpressionArgument, Delete, Function, Select, Subquery, Update,
                         delete, distinct, func, or_,
@@ -15,11 +15,7 @@ from internal.utils.context import get_user_id_context_var
 from pkg import get_utc_without_tzinfo, unique_list
 from pkg.logger_tool import logger
 
-
-class SessionProvider(Protocol):
-    # 关键字仅参数；返回 AsyncContextManager[AsyncSession]
-    def __call__(self, *, autoflush: bool = True) -> AsyncGenerator[AsyncSession, Any]:
-        ...
+SessionProvider = Callable[..., AsyncContextManager[AsyncSession]]
 
 
 class BaseBuilder:
@@ -503,7 +499,7 @@ class DeleteBuilder(BaseBuilder):
         """获取最终的删除语句（带属性访问器）"""
         return self._stmt
 
-    async def execute(self) -> int:
+    async def execute(self):
         """执行删除操作
 
         返回:
@@ -523,7 +519,6 @@ class DeleteBuilder(BaseBuilder):
                 else:
                     logger.info(f"Successfully deleted {deleted_count} records from {self._model_cls.__name__}")
 
-                return deleted_count
             except Exception as e:
                 logger.error(f"{self._model_cls.__name__} delete error: {e}")
                 raise
